@@ -75,7 +75,8 @@ class GIMP(Shape):
 		return(S,G)
 	
 	@staticmethod
-	def updateContrib( dw, patch, idx, cell ):
+	def updateCon( dw, patch, idx, cell ):
+		# Update contribution
 		S,G = updateSG( dw, patch, idx, cell )
 		w = S[0]*S[1]
 		grad = G * S[::-1]                        # Grad = Gx*Sy, Gy*Sx
@@ -83,5 +84,18 @@ class GIMP(Shape):
 		return pCon
 
 	@staticmethod
-	def updateContribList( dw, patch, matid ):
-		
+	def updateContribList( dw, patch ):
+		pCon = dw.pCon
+		for ii in range(len(pCon)):
+			pCon[ii] = []
+			nx = patch.Nc[0]
+			cc = getCell( dw, patch, ii )
+			pCon[ii].append( updateCon( dw, patch, ii, cc        ) ) 
+			pCon[ii].append( updateCon( dw, patch, ii, cc+1      ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+2      ) ) 
+			pCon[ii].append( updateCon( dw, patch, ii, cc+nx     ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+nx+1   ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+nx+2   ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+2*nx   ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+2*nx+1 ) )
+			pCon[ii].append( updateCon( dw, patch, ii, cc+2*nx+2 ) )	
