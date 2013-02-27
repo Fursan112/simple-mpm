@@ -1,12 +1,19 @@
 import numpy as np
+import scipy.io as sio
 import collections
 
+
+#===============================================================================	
 class DataWarehouse:
     # Holds all the data particle and node for an individual timestep used for
     # data access
-    def __init__(self, t, dim=2):
+    def __init__(self, t, idx, bUseMat=False, dim=2, nzeros=6):
 	self.t = t
+	self.idx = idx
 	self.dim = dim
+	self.useVTK = tryImportVTK()
+	self.useMat  = bUseMat
+	self.nzeros  = nzeros
 	
 	# Particle variable lists
 	self.nParts = 0    # Number of particles
@@ -20,7 +27,7 @@ class DataWarehouse:
 	self.pv   = []     # Velocity
 	self.pfe  = []     # External Force
 	self.pw   = []     # Momentum
-	self.pVI  = []     # Velocity increment
+	self.pvI  = []     # Velocity increment
 	self.pxI  = []     # Position increment
 	self.pm   = []     # Mass
 	self.pVol = []     # Initial Volume
@@ -98,10 +105,55 @@ class DataWarehouse:
 	    self.gfi[ii] = Z1.copy      # Internal Force
 	    self.ga[ii] = Z1.copy       # Grid acceleration    		
 
-    def saveDataAndAdvance( self, dt ):
-	self.t += dt
-	self.resetNodes()
 
+    def saveDataAndAdvance( self, dt, fName ):
+	if( self.useMat or (not self.useVTK) ):
+	    saveDataMat(fName)
+	else:
+	    saveDataVTK(fName)
+	self.resetNodes()
+	
+	self.t += dt
+	self.idx += 1	
+
+
+    def saveDataMat( self, fName ):
+	fName = fName + str(self.idx).zfill(self.nzeros) + '.mat'
+	fl1 = ('px','pMat','pF','pGv','pVS','pv')
+	fl2 = ('pfe','pw','pvI','pxI','pm','pVol','pJ')
+	fl3 = ('gx','gm','gv','gw','gfe','gfi','ga')
+	flist = fl1+fl2+fl3
+	fDict = {'pX':self.pX}
+	for ii in flist:
+	    fDict[ii] = getAttr(self,ii)
+	
+	sio.savemat( fName, fDict )
+	
+    def saveDataVTK( self, fName ):
+	fName = fName + str(self.idx).zfill(self.nzeros) + '.vtu'
+	
+	px,py,pz = [], [], []
+	vs11,vs12,vs21,vs22 = [], [], [], []
+	for ii in range(len(self.px)):
+	    px.append( self.px[ii][0] )
+	    py.append( self.px[ii][1] )
+	    pz.append( 0.0 )
+	    vs11.append( self.pVS[ii][0,0] )
+	    vs12.append( self.pVS[ii][0,1] )
+	    vs21.append( self.pVS[ii][1,0] )
+	    vs22.append( self.pVS[ii][1,1] )
+	    
+	px = np.array(px)
+	py = np.array(py)
+	pz = np.array(pz)
+	vs11 = np.array(vs11)
+	vs12 = np.array(vs12)
+	vs21 = np.array(vs21)
+	vs22 = np.array(vs22)
+	vsdat = {"vs11":vs11, "vs12":vs12, "vs21":vs21, "vs22":vs22}
+	pointsToVTK(fName, px, py, pz, data = vsdat)
+	
+	
     @staticmethod
     def findall(L, value, start=0):
 	idx = []
@@ -115,3 +167,11 @@ class DataWarehouse:
 
 #===============================================================================
 pContrib = collections.namedtuple('contrib','idx w grad')
+
+def tryImportVTK():
+    try:
+	from evtk import pointsToVTK
+	bUseVTK = True
+    except ImportError:
+	bUseVTK = False
+    return bUseVTK    

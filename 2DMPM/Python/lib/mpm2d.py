@@ -1,4 +1,4 @@
-def timeAdvance( dw, patch, mats ):
+def timeAdvance( dw, patch, mats, sh ):
     # Advance timestep
     applyExternalLoads( dw, patch, mats )
     interpolateParticlesToGrid( dw, patch, mats )
@@ -6,24 +6,26 @@ def timeAdvance( dw, patch, mats ):
     computeAndIntegrateAcceleration( dw, patch, mats )
     setGridBoundaryConditions( dw, patch, mats )
     computeStressTensor( dw, patch, mats )
-    interpolateToParticlesAndUpdate( dw, patch, mats )
+    interpolateToParticlesAndUpdate( dw, patch, mats, sh )
     
-    dw.saveDataAndAdvance(patch.dt)
-
+    
 def applyExternalLoads( dw, patch, mats ):
     # Apply external loads to each material
     for mat in mats:
         mat.applyExternalLoads( dw, patch )
+
     
 def interpolateParticlesToGrid( dw, patch, mats, sh ):
     # Interpolate particle mass and momentum to the grid
     for mat in mats:
             mat.interpolateParticlesToGrid( dw, patch )    
+
     
 def computeInternalForce( dw, patch, mats ):
     # Compute internal body forces
     for mat in mats:
         mat.computeInternalForce( dw, patch )
+
     
 def computeAndIntegrateAcceleration( dw, patch, tol ):
     # Integrate grid acceleration
@@ -44,8 +46,9 @@ def computeAndIntegrateAcceleration( dw, patch, tol ):
         gv[ii] += ga[ii] * dt                         # Integrate velocity
     
 
-def setGridBoundaryConditions( dw, patch, bc ):
-    bc.setBoundCond( dw, patch )
+def setGridBoundaryConditions( dw, patch, bcs, tol ):
+    for bc in bcs:
+        bc.setBoundCond( dw, patch, tol )
 
 
 def computeStressTensor( dw, patch, mats ):
@@ -53,6 +56,8 @@ def computeStressTensor( dw, patch, mats ):
         mat.computeStressTensor( dw, patch )
 
     
-def interpolateToParticlesAndUpdate( dw, patch, mats ):
+def interpolateToParticlesAndUpdate( dw, patch, mats, sh ):
     for mat in mats:
         mat.computeStressTensor( dw, patch )
+        
+    sh.updateContribList( dw, patch )

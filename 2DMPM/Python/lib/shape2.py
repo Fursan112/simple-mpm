@@ -4,6 +4,7 @@ from datawarehouse import pContrib
 
 #===============================================================================
 class Shape:
+	#  Shape functions - compute nodal contributions to particle values
 	def __init__(self):
 		self.dim = 2;
 		self.S = np.zeros([self.dim,1])    # Value of Shape function

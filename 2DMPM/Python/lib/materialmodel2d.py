@@ -1,8 +1,11 @@
 import numpy as np
 
+
+#===============================================================================
 class MaterialModel:
     # Defines material models - accessed using getStress 
-    #  - actual computation done in static methods    
+    #  - actual computation done in static methods   
+    # Returns stress tensor and jacobian of deformation
     def __init__(self, modelName):
         self.modelName = modelName               # Selects Material Model
         
@@ -13,6 +16,7 @@ class MaterialModel:
 
     @staticmethod
     def planeStrainNeoHookean( props, F ):
+        # Props - poisson, E
         I2 = np.eye(2)
         v = props.poisson
         l = props.E * v / ((1.+v)*(1.-2.*v))

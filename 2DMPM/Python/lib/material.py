@@ -2,6 +2,8 @@ import numpy as np
 import mpmutils as util
 import materialmodel2d as mmodel
 
+
+#===============================================================================
 class Material:
     # Material - holds update functions - default is deformable
     # overridden by RigidMaterial for rigid materials
