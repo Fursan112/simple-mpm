@@ -12,7 +12,7 @@ class Material:
         self.props = props
         self.model = model
         self.exload = exload
-        self.hasParts = false
+        self.hasParts = False
         self.pIdx = []
         self.pCon = []        
 
@@ -22,6 +22,14 @@ class Material:
         self.hasParts = ( len(self.pIdx) > 0 )
         if self.hasParts:
             self.pCon = dw.getData( 'pCon' )
+            
+    def setVelocity( self, dw, v ):
+        pv = dw.getData( 'pv' )
+        pw = dw.getData( 'pw' )
+        pm = dw.getData( 'pm' )
+        for ii in self.pIdx:
+            pv[ii] = v
+            pw[ii] = v * pm[ii]
 
         
     def applyExternalLoads( self, dw, patch ):
@@ -31,7 +39,7 @@ class Material:
         util.integrate( self.pCon, pp, gg, self.pIdx )
 
             
-    def interpolateParticlesToGrid( self, dw, patch, sh ):
+    def interpolateParticlesToGrid( self, dw, patch ):
         # Interpolate particle mass and momentum to the grid
         pp = dw.getData( 'pm' )                          # Mass
         gg = dw.getData( 'gm')
@@ -49,18 +57,18 @@ class Material:
         util.divergence( self.pCon, pp, gg, self.pIdx )        
 
             
-    def computeStressTensor( self, dw, patch, mats ):
+    def computeStressTensor( self, dw, patch ):
         mm = mmodel.MaterialModel( self.model )
-        pf  = dw.getData( 'pF' )                     # Deformation Gradient
-        pvs = dw.getData( 'pVS' )                    # Volume * Stress
-        pv  = dw.getData( 'pv' )                     # Volume
+        pf  = dw.getData( 'pF' )                        # Deformation Gradient
+        pvs = dw.getData( 'pVS' )                       # Volume * Stress
+        pv  = dw.getData( 'pv' )                        # Volume
         for jj in range(len(self.pIdx)):
             ii = self.pIdx[jj]
-            S,Ja = getStress( self.props, pf[ii] )   # Get stress and det(pf)
-            pvs[ii] = S * (pv[ii] * Ja)              # Stress * deformed volume
+            S,Ja = mm.getStress( self.props, pf[ii] )   # Get stress and det(pf)
+            pvs[ii] = S * (pv[ii] * Ja)                 # Stress * deformed volume
             
             
-    def interpolateToParticlesAndUpdate( dw, patch ):
+    def interpolateToParticlesAndUpdate( self, dw, patch ):
         pvI = dw.getData( 'pvI' )
         pxI = dw.getData( 'pxI' )
         pGv = dw.getData( 'pGv' )

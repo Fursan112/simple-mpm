@@ -1,20 +1,26 @@
 import numpy as np
 import scipy.io as sio
 import collections
-
+import os
 
 #===============================================================================	
 class DataWarehouse:
     # Holds all the data particle and node for an individual timestep used for
     # data access
-    def __init__(self, t, idx, bUseMat=False, dim=2, nzeros=6):
+    def __init__(self, t, idx, ddir='.', bUseMat=False, dim=2, nzeros=4):
 	self.t = t
 	self.idx = idx
 	self.dim = dim
+	self.ddir = ddir
 	self.useVTK = tryImportVTK()
 	self.useMat  = bUseMat
 	self.nzeros  = nzeros
-	
+
+	try:
+	    os.mkdir( ddir )	    
+	except Exception:
+	    tmp = 0
+	    
 	# Particle variable lists
 	self.nParts = 0    # Number of particles
 	self.pX   = []     # Initial Position
@@ -50,8 +56,9 @@ class DataWarehouse:
 
     
     def getMatIndex( self, matid ):
+	matIdx = []
 	if matid in self.pMat:	
-	    matIdx = findall( self.pMat, matid )
+	    matIdx = self.findall( self.pMat, matid )
 	
 	return matIdx	
  
@@ -59,9 +66,9 @@ class DataWarehouse:
     def addParticle( self, mat, pos, mass, vol ):
 	self.nParts += 1
 	
-	Z1 = np.zeros([self.dim,1])
+	Z1 = np.zeros(self.dim)
 	Z2 = np.zeros([self.dim,self.dim])
-	I1 = np.ones((1,self.dim))[0]
+	I1 = np.ones(self.dim)
 	I2 = np.diag(I1)
 
 	self.pX.append( pos )          # Initial Position
@@ -74,7 +81,7 @@ class DataWarehouse:
 	self.pv.append( Z1.copy() )    # Velocity
 	self.pfe.append( Z1.copy() )   # External Force
 	self.pw.append( Z1.copy() )    # Momentum
-	self.pVI.append( Z1.copy() )   # Velocity increment
+	self.pvI.append( Z1.copy() )   # Velocity increment
 	self.pxI.append( Z1.copy() )   # Position increment
 	self.pm.append( mass )         # Mass
 	self.pVol.append( vol )        # Initial Volume
@@ -84,53 +91,58 @@ class DataWarehouse:
     def addNode( self, pos ):
 	self.nNodes += 1 
 	
-	Z1 = np.zeros([self.dim,1])	
+	Z1 = np.zeros(self.dim)	
 	self.gx.append( pos )          # Position
 	self.gm.append( 0.0 )          # Mass        
-	self.gv.append( Z1.copy )      # Velocity
-	self.gw.append( Z1.copy )      # Momentum        
-	self.gfe.append( Z1.copy )     # External Force
-	self.gfi.append( Z1.copy )     # Internal Force
-	self.ga.append( Z1.copy )      # Grid acceleration    		
+	self.gv.append( Z1.copy() )      # Velocity
+	self.gw.append( Z1.copy() )      # Momentum        
+	self.gfe.append( Z1.copy() )     # External Force
+	self.gfi.append( Z1.copy() )     # Internal Force
+	self.ga.append( Z1.copy() )      # Grid acceleration    		
 
 
     def resetNodes( self ):
 	#  Reset nodal variables (other than position) to zero
 	for ii in range(self.nNodes):
-	    Z1 = np.zeros([self.dim,1])	
-	    self.gm[ii] = 0.0           # Mass        
-	    self.gv[ii] = Z1.copy       # Velocity
-	    self.gw[ii] = Z1.copy       # Momentum        
-	    self.gfe[ii] = Z1.copy      # External Force
-	    self.gfi[ii] = Z1.copy      # Internal Force
-	    self.ga[ii] = Z1.copy       # Grid acceleration    		
+	    Z1 = np.zeros(self.dim)	
+	    self.gm[ii] = 0.0             # Mass        
+	    self.gv[ii] = Z1.copy()       # Velocity
+	    self.gw[ii] = Z1.copy()       # Momentum        
+	    self.gfe[ii] = Z1.copy()      # External Force
+	    self.gfi[ii] = Z1.copy()      # Internal Force
+	    self.ga[ii] = Z1.copy()       # Grid acceleration    		
 
 
     def saveDataAndAdvance( self, dt, fName ):
-	if( self.useMat or (not self.useVTK) ):
-	    saveDataMat(fName)
-	else:
-	    saveDataVTK(fName)
+	self.saveData(fName)
 	self.resetNodes()
 	
 	self.t += dt
 	self.idx += 1	
 
 
+    def saveData( self, fName ):
+	fName = self.ddir + '/' + fName + str(self.idx).zfill(self.nzeros)
+	if( self.useMat or (not self.useVTK) ):
+	    self.saveDataMat(fName)
+	else:
+	    self.saveDataVTK(fName)	
+
+
     def saveDataMat( self, fName ):
-	fName = fName + str(self.idx).zfill(self.nzeros) + '.mat'
+	fName = fName + '.mat'
 	fl1 = ('px','pMat','pF','pGv','pVS','pv')
 	fl2 = ('pfe','pw','pvI','pxI','pm','pVol','pJ')
 	fl3 = ('gx','gm','gv','gw','gfe','gfi','ga')
 	flist = fl1+fl2+fl3
 	fDict = {'pX':self.pX}
 	for ii in flist:
-	    fDict[ii] = getAttr(self,ii)
+	    fDict[ii] = getattr(self,ii)
 	
 	sio.savemat( fName, fDict )
 	
     def saveDataVTK( self, fName ):
-	fName = fName + str(self.idx).zfill(self.nzeros) + '.vtu'
+	from evtk.hl import pointsToVTK
 	
 	px,py,pz = [], [], []
 	vs11,vs12,vs21,vs22 = [], [], [], []
@@ -154,15 +166,15 @@ class DataWarehouse:
 	pointsToVTK(fName, px, py, pz, data = vsdat)
 	
 	
-    @staticmethod
-    def findall(L, value, start=0):
+    def findall(self, L, value, start=0):
 	idx = []
 	ii = start - 1
-	try:
-	    ii = L.index(value, i+1)
-	    idx.append(ii)
-	except ValueError:
-	    pass
+	while True:
+	    try:
+		ii = L.index(value, ii+1)
+		idx.append(ii)
+	    except ValueError:
+		break
 	return idx
 
 #===============================================================================
@@ -170,7 +182,7 @@ pContrib = collections.namedtuple('contrib','idx w grad')
 
 def tryImportVTK():
     try:
-	from evtk import pointsToVTK
+	from evtk.hl import pointsToVTK
 	bUseVTK = True
     except ImportError:
 	bUseVTK = False

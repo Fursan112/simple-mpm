@@ -14,21 +14,21 @@ class BoundaryCondition:
         self.fun = fun
         
     def setBoundCond( self, dw, patch, tol ):
-        if( bc_type = 'X' ):
-            bcX( self, dw, patch, tol )
+        if( self.bc_type == 'X' ):
+            self.bcX( dw, patch, tol )
         else:
-            bcY( self, dw, patch, tol )
+            self.bcY( dw, patch, tol )
         
     def bcX( self, dw, patch, tol ):
         #  Set boundary condition on line x=val
         gg = dw.getData( self.bc_var )
         for ii in range(len(dw.gx)):
             if( np.abs(dw.gx[ii][0]-self.bc_val) < tol ):
-                gg[ii] = self.fun( gx[ii] )
+                gg[ii] = self.fun( dw.gx[ii] )
                 
     def bcY( self, dw, patch, tol ):
         #  Set boundary condition on line y=val
         gg = dw.getData( self.bc_var )
         for ii in range(len(dw.gx)):
             if( np.abs(dw.gx[ii][1]-self.bc_val) < tol ):
-                gg[ii] = self.fun( gx[ii] )                
+                gg[ii] = self.fun( dw.gx[ii] )                

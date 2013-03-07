@@ -26,7 +26,7 @@ def gradient( contrib, pp, gg, idx ):
         ii = idx[jj]
         pp[ii] = [0]
         cc = contrib[ii]
-        dim = len(gg[cc[0].idx])
+        dim = gg[cc[0].idx].size
         for kk in range(len(cc)):
             gR = np.reshape( gg[cc[kk].idx], (dim,1) )
             cg = np.reshape( cc[kk].grad, (1,dim) )
@@ -38,7 +38,7 @@ def divergence( contrib, pp, gg, idx ):
     for jj in range(len(idx)):
         ii = idx[jj]
         cc = contrib[ii]
-        dim = len(pp[0])
+        dim = cc[0].grad.size
         for kk in range(len(cc)):
             cg = np.reshape( cc[kk].grad, (dim,1) )
             gg[cc[kk].idx] -= np.reshape( np.dot( pp[ii], cg ), dim )
