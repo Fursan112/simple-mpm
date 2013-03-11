@@ -8,10 +8,10 @@ class Patch:
         dim = 2
         self.X0 = X0                 # Bottom corner of patch domain
         self.X1 = X1                 # Top corner of patch domain
-        self.Nc = Nc+2*nGhost        # Vector of node counts
+        self.Nc = Nc+1+2*nGhost      # Vector of node counts
         self.thick = th              # Thickness
         self.nGhost = nGhost         # Number of Ghost nodes
-        self.dX = (X1-X0)/(Nc+1.0)   # Cell size
+        self.dX = (X1-X0)/(Nc)       # Cell size
         self.t = t0                  # Time
         self.tf = tf                 # Final time
         self.dt = dt                 # Time increment

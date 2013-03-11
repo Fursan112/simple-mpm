@@ -41,6 +41,9 @@ class GIMP(Shape):
 	pos = dw.px[idx]
 	x_sc = (pos - patch.X0)/patch.dX + patch.nGhost
 	idx  = np.floor(x_sc)
+	print idx
+	print pos
+	print patch.dX
 	rem  = x_sc - 1.*idx
 	ii   = idx[0] if (rem[0]>=0.5) else idx[0]-1
 	jj   = idx[1] if (rem[1]>=0.5) else idx[1]-1
@@ -58,16 +61,13 @@ class GIMP(Shape):
 	    dw.pCon[ii] = []
 	    cc = self.getCell( dw, patch, ii )
 	    
-		
 	    px = dw.px[ii]
 	    lp = np.sqrt( dw.pVol[ii] / (4.0*patch.thick*dxdy) ) 
 	    l = lp * np.diag( dw.pF[ii] )		
 
 	    for jj in range(len(idxs)):	
 		idx = cc + idxs[jj]
-		print cc
-		print px
-		print idx		
+		
 		r = px - dw.gx[idx]	
 		S = np.zeros(r.size)
 		G = np.zeros(r.size)

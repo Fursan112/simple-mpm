@@ -6,6 +6,7 @@ def integrate( contrib, pp, gg, idx ):
     for jj in range(len(idx)):
         ii = idx[jj]
         cc = contrib[ii]
+        print len(cc)
         for kk in range(len(cc)):
             gg[cc[kk].idx] += pp[ii] * cc[kk].w
     return gg

@@ -71,8 +71,8 @@ class DataWarehouse:
 	I1 = np.ones(self.dim)
 	I2 = np.diag(I1)
 
-	self.pX.append( pos )          # Initial Position
-	self.px.append( pos )          # Position
+	self.pX.append( pos.copy() )          # Initial Position
+	self.px.append( pos.copy() )          # Position
 	self.pCon.append( [] )         # Nodes and weights
 	self.pMat.append( mat )        # Material ID
 	self.pF.append( I2.copy() )    # Deformation Gradient
@@ -121,12 +121,14 @@ class DataWarehouse:
 	self.idx += 1	
 
 
-    def saveData( self, fName ):
-	fName = self.ddir + '/' + fName + str(self.idx).zfill(self.nzeros)
+    def saveData( self, fOut ):
+	fName = self.ddir + '/' + fOut + str(self.idx).zfill(self.nzeros)
+	fNameNode = self.ddir + '/' + fOut + "_n" + str(self.idx).zfill(self.nzeros)
 	if( self.useMat or (not self.useVTK) ):
 	    self.saveDataMat(fName)
 	else:
-	    self.saveDataVTK(fName)	
+	    self.saveDataVTK(fName)
+	    self.saveNodeDataVTK(fNameNode)	
 
 
     def saveDataMat( self, fName ):
@@ -146,6 +148,7 @@ class DataWarehouse:
 	
 	px,py,pz = [], [], []
 	vs11,vs12,vs21,vs22 = [], [], [], []
+	vx, vy = [], []
 	for ii in range(len(self.px)):
 	    px.append( self.px[ii][0] )
 	    py.append( self.px[ii][1] )
@@ -154,6 +157,8 @@ class DataWarehouse:
 	    vs12.append( self.pVS[ii][0,1] )
 	    vs21.append( self.pVS[ii][1,0] )
 	    vs22.append( self.pVS[ii][1,1] )
+	    vx.append( self.pxI[ii][0] )
+	    vy.append( self.pxI[ii][1] )
 	    
 	px = np.array(px)
 	py = np.array(py)
@@ -162,8 +167,37 @@ class DataWarehouse:
 	vs12 = np.array(vs12)
 	vs21 = np.array(vs21)
 	vs22 = np.array(vs22)
-	vsdat = {"vs11":vs11, "vs12":vs12, "vs21":vs21, "vs22":vs22}
+	vx = np.array(vx)
+	vy = np.array(vy)
+	
+	vsdat = {"vs11":vs11, "vs12":vs12, "vs21":vs21, "vs22":vs22, "vx":vx, "vy":vy}
 	pointsToVTK(fName, px, py, pz, data = vsdat)
+	
+	
+    def saveNodeDataVTK( self, fName ):
+	from evtk.hl import pointsToVTK
+		
+	gx,gy,gz = [], [], []
+	vx,vy,ax,ay = [], [], [], []
+	for ii in range(len(self.gx)):
+	    gx.append( self.gx[ii][0] )
+	    gy.append( self.gx[ii][1] )
+	    gz.append( 0.0 )
+	    vx.append( self.gv[ii][0] )
+	    vy.append( self.gfi[ii][0] )
+	    ax.append( self.ga[ii][0] )
+	    ay.append( self.gw[ii][0] )		
+		    
+	gx = np.array(gx)
+	gy = np.array(gy)
+	gz = np.array(gz)
+	vx = np.array(vx)
+	vy = np.array(vy)
+	ax = np.array(ax)
+	ay = np.array(ay)	    
+		
+	vsdat = {"vx":vx, "vy":vy, "ax":ax, "ay":ay}
+	pointsToVTK(fName, gx, gy, gz, data = vsdat)	
 	
 	
     def findall(self, L, value, start=0):

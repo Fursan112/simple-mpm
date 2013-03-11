@@ -4,7 +4,8 @@ import numpy as np
 def timeAdvance( dw, patch, mats, sh ):
     # Advance timestep
     tm = np.zeros(9)
-    tm[0] = time.time()
+    tm[0] = time.time()    
+    sh.updateContribList( dw, patch )            
     tm[1] = applyExternalLoads( dw, patch, mats )
     tm[2] = interpolateParticlesToGrid( dw, patch, mats )
     tm[3] = computeInternalForce( dw, patch, mats )
@@ -21,7 +22,6 @@ def timeAdvance( dw, patch, mats, sh ):
     
 def updateMats( dw, patch, mats, sh ):
     t0 = time.time()
-    sh.updateContribList( dw, patch )    
     for mat in mats:
         mat.getParticles(dw)
     t2 = time.time()
