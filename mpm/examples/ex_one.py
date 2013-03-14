@@ -31,7 +31,7 @@ def init():
     t0 = 0.0
     CFL = 0.2
     dt = min(dx) * CFL / vw
-    tf = 20*dt
+    tf = 10
     
     # Create Data Warehouse
     dw = Dw( t=0.0, idx=0, ddir=fDir )
@@ -62,15 +62,13 @@ def init():
 #===============================================================================
 def stepTime( dw, patch, mats, shape, saveName ):
     # Advance through time
-    dws = []
     while( (patch.t < patch.tf) and patch.allInPatch(dw.px) ):
+        t_out = 0.01        
         mpm.timeAdvance( dw, patch, mats, shape )
-        dws.append(copy.deepcopy(dw))
-        dw.saveDataAndAdvance( patch.dt, saveName )
+        dw.saveDataAndAdvance( patch.dt, t_out, saveName )
 
-    return dws
 #===============================================================================            
 def run():
     dw, pch, mats, sh, fname = init()
-    dws = stepTime( dw, pch, mats, sh, fname )
-    return dws
+    stepTime( dw, pch, mats, sh, fname )
+    return dw

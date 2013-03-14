@@ -12,7 +12,9 @@ class MaterialModel:
     def getStress( self, props, F ):
         model = getattr( self, self.modelName )
         S,Ja = model(props, F);    
+        #return (np.zeros([2,2]),1)
         return (S,Ja)
+    
 
     @staticmethod
     def planeStrainNeoHookean( props, F ):
@@ -23,5 +25,6 @@ class MaterialModel:
         l = E * v / ((1.+v)*(1.-2.*v))
         m = 0.5 * E / (1.+v)
         Ja = np.linalg.det(F)
-        S = I2*l*np.log(Ja)/Ja + m/Ja * ( np.dot( F, F.T ) - I2 )
+        if Ja < 0: print Ja
+        S = I2*l*np.log(Ja)/Ja + m/Ja * (np.dot(F, F.T) - I2)
         return (S,Ja)

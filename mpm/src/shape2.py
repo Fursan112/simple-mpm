@@ -18,35 +18,26 @@ class GIMP(Shape):
 	self.nGhost = 2
 	Shape.__init__(self)
 
-    def uS( self, x, h, l ):                    # Smooth spline interpolant
-	r = np.abs(x)
-	if( r < l ):      S = 1. - (r*r+l*l) / (2.*h*l)
-	elif( r < h-l ):  S = 1. - r/h
-	elif( r < h+l ):  S = (h+l-r) * (h+l-r) / (4.*h*l)
-	else:             S = 0.
-	return S
-
-    def uG( self, x, h, l ):           # Derivative of S
+    
+    def uSG( self, x, h, l ):
 	r = np.abs(x)
 	sgnx = np.sign(x)
-	if( r < l ):      G = -x/(h*l)
-	elif( r < h-l ):  G = -sgnx/h
-	elif( r < h+l ):  G = (h+l-r) / (-2.*sgnx*h*l)
-	else:             G = 0.
-	return G
+	if (r<l):      S = 1. - (r*r+l*l) / (2.*h*l);  G = -x/(h*l)
+	elif(r<h-l):   S = 1. - r/h;                   G = -sgnx/h
+	elif(r<h+1):   S = (h+l-r)*(h+l-r) / (4.*h*l); G = (h+l-r) / (-2.*sgnx*h*l)
+	else:          S = G = 0.
+	return (S,G)
 	
 
     def getCell( self, dw, patch, idx ):    
 	# Gets lower left node of 4-cell block
 	pos = dw.px[idx]
 	x_sc = (pos - patch.X0)/patch.dX + patch.nGhost
-	idx  = np.floor(x_sc)
-	print idx
-	print pos
-	print patch.dX
-	rem  = x_sc - 1.*idx
-	ii   = idx[0] if (rem[0]>=0.5) else idx[0]-1
-	jj   = idx[1] if (rem[1]>=0.5) else idx[1]-1
+	idx = np.floor(x_sc)
+	rem = (x_sc - 1.*idx) >= 0.5
+	ii = idx[0] if rem[0] else idx[0]-1
+	jj = idx[1] if rem[1] else idx[1]-1
+	
 	return int(jj * patch.Nc[0] + ii)
     
 
@@ -54,7 +45,7 @@ class GIMP(Shape):
 	# Update node contribution list
 	nx = patch.Nc[0]
 	h = patch.dX
-	dxdy = h/h[::-1]
+	dxdy = h[::-1]/h
 	idxs = np.array([0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2])
 	
 	for ii in range(len(dw.pCon)):
@@ -65,15 +56,13 @@ class GIMP(Shape):
 	    lp = np.sqrt( dw.pVol[ii] / (4.0*patch.thick*dxdy) ) 
 	    l = lp * np.diag( dw.pF[ii] )		
 
-	    for jj in range(len(idxs)):	
-		idx = cc + idxs[jj]
-		
+	    for idx in idxs:	
+		idx += cc 
 		r = px - dw.gx[idx]	
 		S = np.zeros(r.size)
 		G = np.zeros(r.size)
 		for kk in range(len(r)):
-		    S[kk] = self.uS( r[kk], h[kk], l[kk] )
-		    G[kk] = self.uG( r[kk], h[kk], l[kk] )	
+		    S[kk],G[kk] = self.uSG( r[kk], h[kk], l[kk] )
 		w = S[0]*S[1]
 		grad = G * S[::-1]                        # Grad = Gx*Sy, Gy*Sx		
 		

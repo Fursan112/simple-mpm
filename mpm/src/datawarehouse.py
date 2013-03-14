@@ -113,8 +113,12 @@ class DataWarehouse:
 	    self.ga[ii] = Z1.copy()       # Grid acceleration    		
 
 
-    def saveDataAndAdvance( self, dt, fName ):
-	self.saveData(fName)
+    def saveDataAndAdvance( self, dt, dtsave, fName ):
+	rem = self.t % dtsave / dtsave
+	tol = dt/2./dtsave
+	if (rem < tol) or ((1-rem) < tol):
+	    self.saveData(fName)
+	
 	self.resetNodes()
 	
 	self.t += dt

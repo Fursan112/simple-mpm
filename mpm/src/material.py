@@ -62,8 +62,7 @@ class Material:
         pf  = dw.getData( 'pF' )                        # Deformation Gradient
         pvs = dw.getData( 'pVS' )                       # Volume * Stress
         pv  = dw.getData( 'pv' )                        # Volume
-        for jj in range(len(self.pIdx)):
-            ii = self.pIdx[jj]
+        for ii in self.pIdx:
             S,Ja = mm.getStress( self.props, pf[ii] )   # Get stress and det(pf)
             pvs[ii] = S * (pv[ii] * Ja)                 # Stress * deformed volume
             
@@ -82,8 +81,7 @@ class Material:
         px = dw.getData( 'px' )
         pv = dw.getData( 'pv' )
         pF = dw.getData( 'pF' )
-        for jj in range(len(self.pIdx)):
-            ii = self.pIdx[jj]
+        for ii in self.pIdx:
             pv[ii] += pvI[ii] * patch.dt
             px[ii] += pxI[ii] * patch.dt
             pF[ii] += np.dot( pGv[ii], pF[ii] ) * patch.dt

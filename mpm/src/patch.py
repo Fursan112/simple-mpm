@@ -16,7 +16,7 @@ class Patch:
         self.tf = tf                 # Final time
         self.dt = dt                 # Time increment
         self.it = 0                  # Timestep
-        self.tol = 1.e-10            # Global tolerance
+        self.tol = 1.e-15            # Global tolerance
         self.bcs = []
         
         if not (dw==0):
