@@ -12,7 +12,6 @@ class MaterialModel:
     def getStress( self, props, F ):
         model = getattr( self, self.modelName )
         S,Ja = model(props, F);    
-        #return (np.zeros([2,2]),1)
         return (S,Ja)
     
 

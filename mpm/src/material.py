@@ -54,14 +54,14 @@ class Material:
         # Compute internal body forces - integrate divergence of stress to grid
         pp = dw.getData( 'pVS' )                          # Stress*Volume
         gg = dw.getData( 'gfi')
-        util.divergence( self.pCon, pp, gg, self.pIdx )        
+        util.divergence( self.pCon, pp, gg, self.pIdx )   
 
             
     def computeStressTensor( self, dw, patch ):
         mm = mmodel.MaterialModel( self.model )
         pf  = dw.getData( 'pF' )                        # Deformation Gradient
         pvs = dw.getData( 'pVS' )                       # Volume * Stress
-        pv  = dw.getData( 'pv' )                        # Volume
+        pv  = dw.getData( 'pVol' )                      # Volume
         for ii in self.pIdx:
             S,Ja = mm.getStress( self.props, pf[ii] )   # Get stress and det(pf)
             pvs[ii] = S * (pv[ii] * Ja)                 # Stress * deformed volume
@@ -79,9 +79,12 @@ class Material:
         util.gradient( self.pCon, pGv, gv, self.pIdx )
         
         px = dw.getData( 'px' )
-        pv = dw.getData( 'pv' )
+        #pv = dw.getData( 'pv' )
+        pw = dw.getData( 'pw' )
+        pm = dw.getData( 'pm'  )        
         pF = dw.getData( 'pF' )
         for ii in self.pIdx:
-            pv[ii] += pvI[ii] * patch.dt
+            #pv[ii] += pvI[ii] * patch.dt
+            pw[ii] += pvI[ii] * pm[ii] * patch.dt
             px[ii] += pxI[ii] * patch.dt
             pF[ii] += np.dot( pGv[ii], pF[ii] ) * patch.dt

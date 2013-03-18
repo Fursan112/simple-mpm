@@ -30,7 +30,7 @@ def init():
     t0 = 0.0
     CFL = 0.2
     dt = min(dx) * CFL / vw
-    tf = 5
+    tf = 5.
     
     # Create Data Warehouse
     dw = Dw( t=0.0, idx=0, ddir='ex_two_data' )
@@ -65,7 +65,8 @@ def init():
 def stepTime( dw, patch, mats, shape, saveName ):
     # Advance through time
     while( (patch.t < patch.tf) and patch.allInPatch(dw.px) ):
-        t_out = 0.01        
+        dw.resetNodes()
+        t_out = 0.02      
         mpm.timeAdvance( dw, patch, mats, shape )
         dw.saveDataAndAdvance( patch.dt, t_out, saveName )
 

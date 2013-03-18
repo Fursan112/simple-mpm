@@ -119,7 +119,7 @@ class DataWarehouse:
 	if (rem < tol) or ((1-rem) < tol):
 	    self.saveData(fName)
 	
-	self.resetNodes()
+	#self.resetNodes()
 	
 	self.t += dt
 	self.idx += 1	
@@ -145,7 +145,7 @@ class DataWarehouse:
 	for ii in flist:
 	    fDict[ii] = getattr(self,ii)
 	
-	sio.savemat( fName, fDict )
+	#sio.savemat( fName, fDict )
 	
     def saveDataVTK( self, fName ):
 	from evtk.hl import pointsToVTK

@@ -17,8 +17,8 @@ def timeAdvance( dw, patch, mats, sh ):
 
     for ii in range(8,0,-1):
         tm[ii] = tm[ii] - tm[ii-1]
-        
-    print tm
+    
+    #print tm
     return tm
     
 def updateMats( dw, patch, mats, sh ):
@@ -66,7 +66,7 @@ def computeAndIntegrateAcceleration( dw, patch, tol ):
         gm[ii] += tol                                 # Make sure no divide by 0
         gv[ii] = gw[ii]/gm[ii]                        # v = momentum/mass
         ga[ii] = a_leap * (gfe[ii]+gfi[ii])/gm[ii]    # a = F/m
-        #gv[ii] += ga[ii] * dt                         # Integrate velocity
+        gv[ii] += ga[ii] * dt                         # Integrate velocity
         
     return time.time()
     

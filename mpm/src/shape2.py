@@ -47,7 +47,9 @@ class GIMP(Shape):
 	h = patch.dX
 	dxdy = h[::-1]/h
 	idxs = np.array([0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2])
-	
+	S = np.zeros(h.size)
+	G = np.zeros(h.size)	
+
 	for ii in range(len(dw.pCon)):
 	    dw.pCon[ii] = []
 	    cc = self.getCell( dw, patch, ii )
@@ -59,8 +61,7 @@ class GIMP(Shape):
 	    for idx in idxs:	
 		idx += cc 
 		r = px - dw.gx[idx]	
-		S = np.zeros(r.size)
-		G = np.zeros(r.size)
+		
 		for kk in range(len(r)):
 		    S[kk],G[kk] = self.uSG( r[kk], h[kk], l[kk] )
 		w = S[0]*S[1]
