@@ -4,38 +4,38 @@ from dateutil.relativedelta import relativedelta as reldelta
 dim = 2
 # Utils for moving data between particles and grid
 
-def integrate( contrib, pp, gg, idx ):
+def integrate( cIdx, cW, pp, gg, pIdx ):
     # Integrate particle values to grid (p->g)
-    for ii in idx:
-        for cc in contrib[ii]:
-            gg[cc.idx] += pp[ii] * cc.w
+    for ii in pIdx:
+        for idx,w in zip( cIdx[ii], cW[ii] ):
+            gg[idx] += pp[ii] * w
     return gg
 
-def interpolate( contrib, pp, gg, idx ):
+def interpolate( cIdx, cW, pp, gg, pIdx ):
     # Interpolate grid values to particles pp
-    for ii in idx:
+    for ii in pIdx:
         pp[ii] = [0]
-        for cc in contrib[ii]:
-            pp[ii] += gg[cc.idx] * cc.w
+        for idx,w in zip( cIdx[ii], cW[ii] ):
+            pp[ii] += gg[idx] * w
     return pp
 
-def gradient( contrib, pp, gg, idx ):
+def gradient( cIdx, cGrad, pp, gg, pIdx ):
     # Interpolate a gradient
-    for ii in idx:
+    for ii in pIdx:
         pp[ii] = [0]
-        for cc in contrib[ii]:
-            gR = np.reshape( gg[cc.idx], (dim,1) )
-            cg = np.reshape( cc.grad, (1,dim) )
+        for idx,grad in zip( cIdx[ii], cGrad[ii] ):
+            gR = np.reshape( gg[idx], (dim,1) )
+            cg = np.reshape( grad, (1,dim) )
             pp[ii] += np.dot( gR, cg )
         
     return pp
 
-def divergence( contrib, pp, gg, idx ):
+def divergence( cIdx, cGrad, pp, gg, pIdx ):
     # Send divergence of particle field to the grid
-    for ii in idx:
-        for cc in contrib[ii]:
-            cg = np.reshape( cc.grad, (dim,1) )            
-            gg[cc.idx] -= np.reshape( np.dot( pp[ii], cg ), dim )
+    for ii in pIdx:
+        for idx,grad in zip( cIdx[ii], cGrad[ii] ):
+            cg = np.reshape( grad, (dim,1) )            
+            gg[idx] -= np.reshape( np.dot( pp[ii], cg ), dim )
     return gg    
 
 

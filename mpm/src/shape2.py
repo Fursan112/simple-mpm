@@ -41,7 +41,7 @@ class GIMP(Shape):
 	return int(jj * patch.Nc[0] + ii)
     
 
-    def updateContribList( self, dw, patch ):
+    def updateContribList( self, dw, patch, mIdx ):
 	# Update node contribution list
 	nx = patch.Nc[0]
 	h = patch.dX
@@ -50,15 +50,14 @@ class GIMP(Shape):
 	S = np.zeros(h.size)
 	G = np.zeros(h.size)	
 
-	for ii in range(len(dw.pCon)):
-	    dw.pCon[ii] = []
+	for ii in mIdx:
 	    cc = self.getCell( dw, patch, ii )
 	    px = dw.px[ii]
 	    lp = np.sqrt( dw.pVol[ii] / (4.0*patch.thick*dxdy) ) 
 	    l = lp * np.diag( dw.pF[ii] )		
 
-	    for idx in idxs:	
-		idx += cc 
+	    for jj in range(9):	
+		idx = idxs[jj] + cc 
 		r = px - dw.gx[idx]	
 		
 		for kk in range(len(r)):
@@ -67,4 +66,6 @@ class GIMP(Shape):
 		w = S[0]*S[1]
 		grad = G * S[::-1]                        # Grad = Gx*Sy, Gy*Sx		
 		
-		dw.pCon[ii].append( pContrib( idx, w, grad ) ) 
+		dw.cIdx[ii][jj] = idx
+		dw.cW[ii][jj] = w
+		dw.cGrad[ii][jj] = grad

@@ -6,13 +6,13 @@ from mpm_imports import *
 def init():
     # Initialize Simulation
     # Result File Name + Directory
-    fName = 'two'
+    fName = 'two_tmp'
     fDir = 'test_data/two'
     
     # Domain Constants
     x0 = np.array([0.0,0.0]);                # Bottom left corner
     x1 = np.array([1.,1.])                   # Top right corner
-    nN = np.array([32,32])                   # Number of cells
+    nN = np.array([20,20])                   # Number of cells
     dx = (x1-x0)/nN                          # Cell size
     nG = 2                                   # Number of ghost nodes
     thick = 0.1                              # Domain thickness
@@ -29,7 +29,7 @@ def init():
     vw = np.sqrt( mProps1['modulus']/mProps1['density'] )   # Wave speed    
     t0 = 0.0;    CFL = 0.4
     dt = min(dx) * CFL / vw;
-    tf = 100;  dt_save = 0.1      
+    tf = 5;  dt_save = 0.1   
     
     # Create Data Warehouse, Patch, Shape functions
     dw = Dw( t=0.0, idx=0, sidx=0, tout=dt_save, ddir=fDir )
@@ -46,14 +46,13 @@ def init():
     matid1 = 1;  matid2 = 2                      # Material IDs
     geomutils.fillAnnulus( pt1,r[0],r[1],ppe,pch,dw,matid1,mProps1['density'] )
     geomutils.fillAnnulus( pt2,r[0],r[1],ppe,pch,dw,matid2,mProps1['density'] )
+    dw.initArrays(sh.nSupport)    
     
     mpm.updateMats( dw, pch, mats, sh )
     v0 = np.array([0.1,0.1])                     # Initial Velocity    
     mat1.setVelocity( dw, v0 )
     mat2.setVelocity( dw, -v0 )
 
-    dw.initArrays()
-    
     print 'dt = ' + str(pch.dt)        
     return (dw, pch, mats, sh, fName )
 
@@ -64,7 +63,6 @@ def stepTime( dw, patch, mats, shape, saveName ):
     tbegin = time.time()
     try:
         while( (patch.t < patch.tf) and patch.allInPatch(dw.px) ):
-            dw.resetNodes()     
             mpm.timeAdvance( dw, patch, mats, shape )
             dw.saveDataAndAdvance( patch.dt, saveName )
     except JacobError:

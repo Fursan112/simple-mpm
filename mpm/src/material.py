@@ -13,15 +13,15 @@ class Material:
         self.model = model
         self.exload = exload
         self.hasParts = False
-        self.pIdx = []
-        self.pCon = []        
+        self.pIdx = []   
 
         
-    def getParticles( self, dw ):
+    def getParticles( self, dw, patch, sh ):
         self.pIdx = dw.getMatIndex( self.matid )
         self.hasParts = ( len(self.pIdx) > 0 )
         if self.hasParts:
-            self.pCon = dw.getData( 'pCon' )
+            sh.updateContribList( dw, patch, self.pIdx )
+            
             
     def setVelocity( self, dw, v ):
         pw = dw.getData( 'pw' )
@@ -41,18 +41,18 @@ class Material:
         # Apply external loads to each material
         pp = dw.getData( 'pfe' )                         # External force
         gg = dw.getData( 'gfe')
-        util.integrate( self.pCon, pp, gg, self.pIdx )
+        util.integrate( dw.cIdx, dw.cW, pp, gg, self.pIdx )
 
             
     def interpolateParticlesToGrid( self, dw, patch ):
         # Interpolate particle mass and momentum to the grid
         pp = dw.getData( 'pm' )                          # Mass
         gg = dw.getData( 'gm')
-        util.integrate( self.pCon, pp, gg, self.pIdx )
+        util.integrate( dw.cIdx, dw.cW, pp, gg, self.pIdx )
         
         pp = dw.getData( 'pw' )                          # Momentum
         gg = dw.getData( 'gw')
-        util.integrate( self.pCon, pp, gg, self.pIdx )        
+        util.integrate( dw.cIdx, dw.cW, pp, gg, self.pIdx )        
      
     def computeStressTensor( self, dw, patch ):
         mm = mmodel.MaterialModel( self.model )
@@ -67,7 +67,7 @@ class Material:
         # Compute internal body forces - integrate divergence of stress to grid
         pp = dw.getData( 'pVS' )                          # Stress*Volume
         gg = dw.getData( 'gfi')
-        util.divergence( self.pCon, pp, gg, self.pIdx )   
+        util.divergence( dw.cIdx, dw.cGrad, pp, gg, self.pIdx )   
             
     def interpolateToParticlesAndUpdate( self, dw, patch ):
         pvI = dw.getData( 'pvI' )
@@ -76,9 +76,9 @@ class Material:
         ga  = dw.getData( 'ga' )
         gv  = dw.getData( 'gv' )
         
-        util.interpolate( self.pCon, pvI, ga, self.pIdx )
-        util.interpolate( self.pCon, pxI, gv, self.pIdx )
-        util.gradient( self.pCon, pGv, gv, self.pIdx )
+        util.interpolate( dw.cIdx, dw.cW, pvI, ga, self.pIdx )
+        util.interpolate( dw.cIdx, dw.cW, pxI, gv, self.pIdx )
+        util.gradient( dw.cIdx, dw.cGrad, pGv, gv, self.pIdx )
         
         px = dw.getData( 'px' )
         pw = dw.getData( 'pw' )

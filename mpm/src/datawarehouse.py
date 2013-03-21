@@ -1,62 +1,75 @@
 import numpy as np
-import scipy.io as sio
 import collections
 import os
+from evtk.hl import pointsToVTK
+from copy import deepcopy as copy
+
+def vonMises( S ):
+    return np.sqrt( S[0,0]*S[0,0] - S[0,0]*S[1,1] + S[1,1]*S[1,1] +
+                    3.*S[1,0]*S[0,1] )
+
 
 #===============================================================================	
 class DataWarehouse:
     # Holds all the data particle and node for an individual timestep used for
     # data access
-    def __init__(self, 
-                 t, idx, sidx, tout, ddir='.', bUseMat=False, dim=2, nzeros=4):
+    def __init__(self, t, idx, sidx, tout, ddir='.'):
 	self.t = t
 	self.idx = idx
 	self.saveidx = sidx
 	self.savet = tout
-	self.dim = dim
 	self.ddir = ddir
-	self.useVTK = tryImportVTK()
-	self.useMat  = bUseMat
-	self.nzeros  = nzeros
+	self.nzeros = 4
 
-	try:
-	    os.mkdir( ddir )	    
-	except Exception:
-	    tmp = 0
+	try:  os.mkdir( ddir )	    
+	except Exception:  pass
 	    
 	# Particle variable lists
-	self.nParts = 0    # Number of particles
 	self.pX   = []     # Initial Position
 	self.px   = []     # Position	
-	self.pCon = []     # Nodes and weights to which the particle contributes
 	self.pMat = []     # Material ID
-	self.pF   = []     # Deformation Gradient
-	self.pGv  = []     # Velocity Gradient
-	self.pVS  = []     # Volume*Stress
-	self.pfe  = []     # External Force
-	self.pw   = []     # Momentum
-	self.pvI  = []     # Velocity increment
-	self.pxI  = []     # Position increment
 	self.pm   = []     # Mass
 	self.pVol = []     # Initial Volume
-        
+	        
 	# Node variable lists
 	self.nNodes = 0      # Number of nodes
         self.gx = []         # Position	
-        self.gm = []         # Mass        
-        self.gv = []         # Velocity
-        self.gw = []         # Momentum        
-        self.gfe = []        # External Force
-        self.gfi = []        # Internal Force
-        self.ga = []         # Grid acceleration    
-
-    def initArrays( self ):
-	pList = ['pX','px','pF','pGv','pVS','pfe','pw','pvI','pxI','pm','pVol']
-	nList = ['gx','gm','gv','gw','gfe','gfi','ga']
+        
+    def initArrays( self, shSize ):
+	npt = len(self.pX)    
+	ng  = len(self.gx)
 	
-	for lattr in pList+nList:
-	    attr = getattr(self,lattr)
-	    attr = np.array(attr)
+	self.pX = np.array(self.pX)
+	self.px = np.array(self.px)
+	self.pm = np.array(self.pm)
+	self.pMat = np.array(self.pMat)
+	self.pVol = np.array(self.pVol)
+	self.gx = np.array(self.gx)
+	
+	# Particle Variables
+	self.pw  = np.zeros((npt,2))           # Momentum
+	self.pvI = np.zeros((npt,2))           # Velocity Increment
+	self.pxI = np.zeros((npt,2))           # Position Increment
+	self.pfe = np.zeros((npt,2))           # External Force
+	self.pGv = np.zeros((npt,2,2))         # Velocity Gradient
+	self.pVS = np.zeros((npt,2,2))         # Stress * Volume
+	self.pF  = np.zeros((npt,2,2))         # Deformation gradient
+	for ii in range(len(self.pF)): 
+	    self.pF[ii] = np.diag(np.ones(2))
+	    
+	# Node Variables
+	self.gm  = np.zeros(ng)               # Mass
+	self.gv  = np.zeros((ng,2))           # Velocity
+	self.gw  = np.zeros((ng,2))           # Momentum
+	self.ga  = np.zeros((ng,2))           # Acceleration
+	self.gfe = np.zeros((ng,2))           # External Force
+	self.gfi = np.zeros((ng,2))           # Internal Force	  
+	
+	# Contribution Variables
+	self.cIdx  = np.zeros((npt,shSize))
+	self.cW    = np.zeros((npt,shSize))
+	self.cGrad = np.zeros((npt,shSize,2))
+	
 	
     def getData( self, name ):
 	source = getattr(self, name)
@@ -64,58 +77,27 @@ class DataWarehouse:
 
     
     def getMatIndex( self, matid ):
-	matIdx = []
-	if matid in self.pMat:	
-	    matIdx = self.findall( self.pMat, matid )
-	
+	matIdx = np.where( self.pMat==matid )[0]
 	return matIdx	
  
     
     def addParticle( self, mat, pos, mass, vol ):
-	self.nParts += 1
-	
-	Z1 = np.zeros(self.dim)
-	Z2 = np.zeros([self.dim,self.dim])
-	I1 = np.ones(self.dim)
-	I2 = np.diag(I1)
-
 	self.pX.append( pos.copy() )          # Initial Position
 	self.px.append( pos.copy() )          # Position
-	self.pCon.append( [] )         # Nodes and weights
 	self.pMat.append( mat )        # Material ID
-	self.pF.append( I2.copy() )    # Deformation Gradient
-	self.pGv.append( Z2.copy() )   # Velocity Gradient
-	self.pVS.append( Z2.copy() )   # Volume*Stress
-	self.pfe.append( Z1.copy() )   # External Force
-	self.pw.append( Z1.copy() )    # Momentum
-	self.pvI.append( Z1.copy() )   # Velocity increment
-	self.pxI.append( Z1.copy() )   # Position increment
 	self.pm.append( mass )         # Mass
-	self.pVol.append( vol )        # Initial Volume
-
+	self.pVol.append( vol )        # Initial Volume	
+	
 	
     def addNode( self, pos ):
-	self.nNodes += 1 
+	self.gx.append( pos )
 	
-	Z1 = np.zeros(self.dim)	
-	self.gx.append( pos )          # Position
-	self.gm.append( 0.0 )          # Mass        
-	self.gv.append( Z1.copy() )      # Velocity
-	self.gw.append( Z1.copy() )      # Momentum        
-	self.gfe.append( Z1.copy() )     # External Force
-	self.gfi.append( Z1.copy() )     # Internal Force
-	self.ga.append( Z1.copy() )      # Grid acceleration    		
-
 
     def resetNodes( self ):
 	#  Reset nodal variables (other than position) to zero
-	for ii in range(self.nNodes):
-	    self.gm[ii] *= 0.0                    
-	    self.gv[ii] *= 0.0
-	    self.gw[ii] *= 0.0
-	    self.gfe[ii] *= 0.0
-	    self.gfi[ii] *= 0.0
-	    self.ga[ii] *= 0.0    		
+	self.gm  *= 0.0;    self.gv  *= 0.0
+	self.gw  *= 0.0;    self.gfe *= 0.0
+	self.gfi *= 0.0;    self.ga  *= 0.0   		
 
 
     def saveDataAndAdvance( self, dt, fName ):
@@ -128,91 +110,37 @@ class DataWarehouse:
 	self.t += dt
 	self.idx += 1	
 
-
-    def saveData( self, fOut ):
-	fName = self.ddir + '/' + fOut + str(self.saveidx).zfill(self.nzeros)
-	fNameNode = self.ddir + '/' + fOut + "_n" + str(self.saveidx).zfill(self.nzeros)
-	self.saveDataVTK(fName)
-	self.saveNodeDataVTK(fNameNode)	
-
 	
-    def saveDataVTK( self, fName ):
-	from evtk.hl import pointsToVTK
+    def saveData( self, fSave ):	
+	strIdx = str(self.saveidx).zfill(self.nzeros)
+	fName = self.ddir + '/' + fSave + str(self.saveidx).zfill(self.nzeros)
+	fNameNode = self.ddir + '/' + fSave + "_n" + str(self.saveidx).zfill(self.nzeros)
+	self.saveNodeData(fNameNode)		
 	
-	px,py,pz = [], [], []
-	vs11,vs12,vs21,vs22 = [], [], [], []
-	vx, vy, vv = [], [], []
-	for ii in range(len(self.px)):
-	    px.append( self.px[ii][0] )
-	    py.append( self.px[ii][1] )
-	    pz.append( 0.0 )
-	    vs11.append( self.pVS[ii][0,0] )
-	    vs12.append( self.pVS[ii][0,1] )
-	    vs21.append( self.pVS[ii][1,0] )
-	    vs22.append( self.pVS[ii][1,1] )
-	    vx.append( self.pxI[ii][0] )
-	    vy.append( self.pxI[ii][1] )
-	    vv.append( np.sign(self.pxI[ii][0]) * np.dot(self.pxI[ii],self.pxI[ii] ) )
-	    
-	px = np.array(px)
-	py = np.array(py)
-	pz = np.array(pz)
-	vs11 = np.array(vs11)
-	vs12 = np.array(vs12)
-	vs21 = np.array(vs21)
-	vs22 = np.array(vs22)
-	vx = np.array(vx)
-	vy = np.array(vy)
-	vv = np.array(vv)
+	px = copy(self.px[:,0])
+	py = copy(self.px[:,1])
+	pz = np.zeros(px.shape)
+	vx = self.pxI[:][:,0]
+	vy = self.pxI[:][:,1]
+	vv = np.sqrt( vx*vx + vy*vy ) * np.sign(vx)
+	pS = [self.pVS[ii]/self.pVol[ii] for ii in range(len(self.pVol))]
+	mises = np.array([vonMises(ii) for ii in pS])
 	
-	vsdat = {"vs11":vs11, "vs12":vs12, "vs21":vs21, "vs22":vs22, "vx":vx, "vy":vy, "v":vv}
+	vsdat = {"vonMises":mises, "v":vv}
 	pointsToVTK(fName, px, py, pz, data = vsdat)
 	
 	
-    def saveNodeDataVTK( self, fName ):
-	from evtk.hl import pointsToVTK
+    def saveNodeData( self, fName ):
+	gx = copy(self.gx[:][:,0])
+	gy = copy(self.gx[:][:,1])
+	gz = np.zeros(gx.shape)
+	ax = copy(self.ga[:][:,0])
+	ay = copy(self.ga[:][:,1])
+	aa = np.sqrt( ax*ax + ay*ay )    
 		
-	gx,gy,gz = [], [], []
-	vx,vy,ax,ay = [], [], [], []
-	for ii in range(len(self.gx)):
-	    gx.append( self.gx[ii][0] )
-	    gy.append( self.gx[ii][1] )
-	    gz.append( 0.0 )
-	    vx.append( self.gv[ii][0] )
-	    vy.append( self.gfi[ii][0] )
-	    ax.append( self.ga[ii][0] )
-	    ay.append( self.gw[ii][0] )		
-		    
-	gx = np.array(gx)
-	gy = np.array(gy)
-	gz = np.array(gz)
-	vx = np.array(vx)
-	vy = np.array(vy)
-	ax = np.array(ax)
-	ay = np.array(ay)	    
-		
-	vsdat = {"vx":vx, "vy":vy, "ax":ax, "ay":ay}
+	vsdat = {"ax":ax, "ay":ay, "aa":aa}
 	pointsToVTK(fName, gx, gy, gz, data = vsdat)	
 	
-	
-    def findall(self, L, value, start=0):
-	idx = []
-	ii = start - 1
-	while True:
-	    try:
-		ii = L.index(value, ii+1)
-		idx.append(ii)
-	    except ValueError:
-		break
-	return idx
 
 #===============================================================================
 pContrib = collections.namedtuple('contrib','idx w grad')
-
-def tryImportVTK():
-    try:
-	from evtk.hl import pointsToVTK
-	bUseVTK = True
-    except ImportError:
-	bUseVTK = False
-    return bUseVTK    
