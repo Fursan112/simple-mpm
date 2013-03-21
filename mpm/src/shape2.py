@@ -24,7 +24,7 @@ class GIMP(Shape):
 	sgnx = np.sign(x)
 	if (r<l):      S = 1. - (r*r+l*l) / (2.*h*l);  G = -x/(h*l)
 	elif(r<h-l):   S = 1. - r/h;                   G = -sgnx/h
-	elif(r<h+1):   S = (h+l-r)*(h+l-r) / (4.*h*l); G = (h+l-r) / (-2.*sgnx*h*l)
+	elif(r<h+l):   S = (h+l-r)*(h+l-r) / (4.*h*l); G = (h+l-r) / (-2.*sgnx*h*l)
 	else:          S = G = 0.
 	return (S,G)
 	
@@ -53,7 +53,6 @@ class GIMP(Shape):
 	for ii in range(len(dw.pCon)):
 	    dw.pCon[ii] = []
 	    cc = self.getCell( dw, patch, ii )
-	    
 	    px = dw.px[ii]
 	    lp = np.sqrt( dw.pVol[ii] / (4.0*patch.thick*dxdy) ) 
 	    l = lp * np.diag( dw.pF[ii] )		
@@ -64,6 +63,7 @@ class GIMP(Shape):
 		
 		for kk in range(len(r)):
 		    S[kk],G[kk] = self.uSG( r[kk], h[kk], l[kk] )
+		    
 		w = S[0]*S[1]
 		grad = G * S[::-1]                        # Grad = Gx*Sy, Gy*Sx		
 		

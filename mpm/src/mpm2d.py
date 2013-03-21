@@ -8,17 +8,17 @@ def timeAdvance( dw, patch, mats, sh ):
     sh.updateContribList( dw, patch )            
     tm[1] = applyExternalLoads( dw, patch, mats )
     tm[2] = interpolateParticlesToGrid( dw, patch, mats )
-    tm[3] = computeInternalForce( dw, patch, mats )
-    tm[4] = computeAndIntegrateAcceleration( dw, patch, patch.tol )
-    tm[5] = setGridBoundaryConditions( dw, patch, patch.tol )
-    tm[6] = computeStressTensor( dw, patch, mats )
+    tm[3] = computeStressTensor( dw, patch, mats )
+    tm[4] = computeInternalForce( dw, patch, mats )
+    tm[5] = computeAndIntegrateAcceleration( dw, patch, patch.tol )
+    tm[6] = setGridBoundaryConditions( dw, patch, patch.tol )
     tm[7] = interpolateToParticlesAndUpdate( dw, patch, mats, sh )
     tm[8] = updateMats( dw, patch, mats, sh )
 
     for ii in range(8,0,-1):
         tm[ii] = tm[ii] - tm[ii-1]
+    tm[0] = 0
     
-    #print tm
     return tm
     
 def updateMats( dw, patch, mats, sh ):

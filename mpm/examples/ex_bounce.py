@@ -3,16 +3,20 @@ import time
 from mpm_imports import *
 
 #===============================================================================
+def bcZero( x ):
+    return( np.zeros(2) )
+
+#===============================================================================
 def init():
     # Initialize Simulation
     # Result File Name + Directory
-    fName = 'two'
-    fDir = 'test_data/two'
+    fName = 'bounce'
+    fDir = 'test_data/bounce_data'
     
     # Domain Constants
     x0 = np.array([0.0,0.0]);                # Bottom left corner
     x1 = np.array([1.,1.])                   # Top right corner
-    nN = np.array([32,32])                   # Number of cells
+    nN = np.array([20,20])                   # Number of cells
     dx = (x1-x0)/nN                          # Cell size
     nG = 2                                   # Number of ghost nodes
     thick = 0.1                              # Domain thickness
@@ -29,7 +33,7 @@ def init():
     vw = np.sqrt( mProps1['modulus']/mProps1['density'] )   # Wave speed    
     t0 = 0.0;    CFL = 0.4
     dt = min(dx) * CFL / vw;
-    tf = 100;  dt_save = 0.1      
+    tf = 10;  dt_save = 0.1      
     
     # Create Data Warehouse, Patch, Shape functions
     dw = Dw( t=0.0, idx=0, sidx=0, tout=dt_save, ddir=fDir )
@@ -37,7 +41,11 @@ def init():
     sh = Shape()
 
     # Create boundary conditions
-    pch.bcs = []                                 #  BC list
+    bcx1 = Bc( 'X', 0.0, 'gv', bcZero )       # Zero velocity bc at x=0
+    bcx2 = Bc( 'X', 1.0, 'gv', bcZero )       # Zero velocity bc at x=1
+    bcy1 = Bc( 'Y', 0.0, 'gv', bcZero )       # Zero velocity bc at x=0
+    bcy2 = Bc( 'Y', 1.0, 'gv', bcZero )       # Zero velocity bc at x=1
+    pch.bcs = [bcx1,bcx2,bcy1,bcy2]           # BC list                        #  BC list
     
     # Create Circles
     pt1 = np.array([0.25,0.25])                  # Center 1

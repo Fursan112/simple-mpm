@@ -24,14 +24,19 @@ class Material:
             self.pCon = dw.getData( 'pCon' )
             
     def setVelocity( self, dw, v ):
-        pv = dw.getData( 'pv' )
         pw = dw.getData( 'pw' )
         pm = dw.getData( 'pm' )
         for ii in self.pIdx:
-            pv[ii] = v
             pw[ii] = v * pm[ii]
-
         
+            
+    def setExternalLoad( self, dw, fe ):
+        pfe = dw.getData( 'pfe' )
+        pm = dw.getData( 'pm' )        
+        for ii in self.pIdx: 
+            pfe[ii] = fe * pm[ii]
+
+
     def applyExternalLoads( self, dw, patch ):
         # Apply external loads to each material
         pp = dw.getData( 'pfe' )                         # External force
@@ -49,14 +54,6 @@ class Material:
         gg = dw.getData( 'gw')
         util.integrate( self.pCon, pp, gg, self.pIdx )        
      
-            
-    def computeInternalForce( self, dw, patch ):
-        # Compute internal body forces - integrate divergence of stress to grid
-        pp = dw.getData( 'pVS' )                          # Stress*Volume
-        gg = dw.getData( 'gfi')
-        util.divergence( self.pCon, pp, gg, self.pIdx )   
-
-            
     def computeStressTensor( self, dw, patch ):
         mm = mmodel.MaterialModel( self.model )
         pf  = dw.getData( 'pF' )                        # Deformation Gradient
@@ -64,8 +61,13 @@ class Material:
         pv  = dw.getData( 'pVol' )                      # Volume
         for ii in self.pIdx:
             S,Ja = mm.getStress( self.props, pf[ii] )   # Get stress and det(pf)
-            pvs[ii] = S * (pv[ii] * Ja)                 # Stress * deformed volume
+            pvs[ii] = S * (pv[ii] * Ja)                 # Stress * deformed volume     
             
+    def computeInternalForce( self, dw, patch ):
+        # Compute internal body forces - integrate divergence of stress to grid
+        pp = dw.getData( 'pVS' )                          # Stress*Volume
+        gg = dw.getData( 'gfi')
+        util.divergence( self.pCon, pp, gg, self.pIdx )   
             
     def interpolateToParticlesAndUpdate( self, dw, patch ):
         pvI = dw.getData( 'pvI' )
@@ -79,12 +81,10 @@ class Material:
         util.gradient( self.pCon, pGv, gv, self.pIdx )
         
         px = dw.getData( 'px' )
-        #pv = dw.getData( 'pv' )
         pw = dw.getData( 'pw' )
         pm = dw.getData( 'pm'  )        
         pF = dw.getData( 'pF' )
         for ii in self.pIdx:
-            #pv[ii] += pvI[ii] * patch.dt
             pw[ii] += pvI[ii] * pm[ii] * patch.dt
             px[ii] += pxI[ii] * patch.dt
             pF[ii] += np.dot( pGv[ii], pF[ii] ) * patch.dt
