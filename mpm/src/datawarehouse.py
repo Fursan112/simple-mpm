@@ -11,15 +11,16 @@ def vonMises( S ):
 
 #===============================================================================	
 class DataWarehouse:
-    # Holds all the data particle and node for an individual timestep used for
-    # data access
-    def __init__(self, t, idx, sidx, tout, ddir='.'):
-	self.t = t
-	self.idx = idx
-	self.saveidx = sidx
-	self.savet = tout
-	self.ddir = ddir
-	self.nzeros = 4
+    # Holds all the data particle and node for an individual 
+    # timestep used for data access
+    def __init__(self, savedt, ddir='.', 
+                 saveidx=0, t=0., idx=0):
+	self.t = t                               # Current time
+	self.idx = idx                           # Time index
+	self.saveidx = saveidx                   # Index for output file
+	self.savedt = savedt                     # Output interval
+	self.ddir = ddir                         # Output directory
+	self.nzeros = 4                          # Number of digits in filename
 
 	try:  os.mkdir( ddir )	    
 	except Exception:  pass
@@ -34,6 +35,7 @@ class DataWarehouse:
 	# Node variable lists
 	self.nNodes = 0      # Number of nodes
         self.gx = []         # Position	
+        
         
     def initArrays( self, shSize ):
 	npt = len(self.pX)    
@@ -58,7 +60,7 @@ class DataWarehouse:
 	    self.pF[ii] = np.diag(np.ones(2))
 	    
 	# Node Variables
-	self.gm  = np.zeros(ng)               # Mass
+	self.gm  = np.zeros((ng,2))           # Mass
 	self.gv  = np.zeros((ng,2))           # Velocity
 	self.gw  = np.zeros((ng,2))           # Momentum
 	self.ga  = np.zeros((ng,2))           # Acceleration
@@ -66,7 +68,7 @@ class DataWarehouse:
 	self.gfi = np.zeros((ng,2))           # Internal Force	  
 	
 	# Contribution Variables
-	self.cIdx  = np.zeros((npt,shSize))
+	self.cIdx  = np.zeros((npt,shSize),dtype=np.int)
 	self.cW    = np.zeros((npt,shSize))
 	self.cGrad = np.zeros((npt,shSize,2))
 	
@@ -82,11 +84,11 @@ class DataWarehouse:
  
     
     def addParticle( self, mat, pos, mass, vol ):
-	self.pX.append( pos.copy() )          # Initial Position
-	self.px.append( pos.copy() )          # Position
-	self.pMat.append( mat )        # Material ID
-	self.pm.append( mass )         # Mass
-	self.pVol.append( vol )        # Initial Volume	
+	self.pX.append( pos.copy() )              # Initial Position
+	self.px.append( pos.copy() )              # Position
+	self.pMat.append( mat )                   # Material ID
+	self.pm.append( np.array([mass,mass]) )   # Mass
+	self.pVol.append( vol )                   # Initial Volume	
 	
 	
     def addNode( self, pos ):
@@ -101,8 +103,8 @@ class DataWarehouse:
 
 
     def saveDataAndAdvance( self, dt, fName ):
-	rem = self.t % self.savet / self.savet
-	tol = dt/2./self.savet
+	rem = self.t % self.savedt / self.savedt
+	tol = dt/2./self.savedt
 	if (rem < tol) or ((1-rem) < tol):
 	    self.saveData(fName)
 	    self.saveidx += 1
@@ -113,10 +115,16 @@ class DataWarehouse:
 	
     def saveData( self, fSave ):	
 	strIdx = str(self.saveidx).zfill(self.nzeros)
-	fName = self.ddir + '/' + fSave + str(self.saveidx).zfill(self.nzeros)
-	fNameNode = self.ddir + '/' + fSave + "_n" + str(self.saveidx).zfill(self.nzeros)
-	self.saveNodeData(fNameNode)		
+	fNamePoint = ( self.ddir + '/' + fSave + 
+	               str(self.saveidx).zfill(self.nzeros) )
+	fNameNode = ( self.ddir + '/' + fSave + "_n" + 
+	              str(self.saveidx).zfill(self.nzeros) )
 	
+	self.savePointData(fNamePoint)
+	self.saveNodeData(fNameNode)		
+
+    
+    def savePointData( self, fName ):
 	px = copy(self.px[:,0])
 	py = copy(self.px[:,1])
 	pz = np.zeros(px.shape)
@@ -126,7 +134,7 @@ class DataWarehouse:
 	pS = [self.pVS[ii]/self.pVol[ii] for ii in range(len(self.pVol))]
 	mises = np.array([vonMises(ii) for ii in pS])
 	
-	vsdat = {"vonMises":mises, "v":vv}
+	vsdat = {"vonMises":mises, "v":vv, "mat":self.pMat}
 	pointsToVTK(fName, px, py, pz, data = vsdat)
 	
 	
@@ -140,7 +148,3 @@ class DataWarehouse:
 		
 	vsdat = {"ax":ax, "ay":ay, "aa":aa}
 	pointsToVTK(fName, gx, gy, gz, data = vsdat)	
-	
-
-#===============================================================================
-pContrib = collections.namedtuple('contrib','idx w grad')

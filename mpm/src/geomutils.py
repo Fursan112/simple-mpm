@@ -12,16 +12,16 @@ def fillRectangle( pt1, pt2, ppe, patch, dw, matid, density ):
                 dw.addParticle( matid, pt, vol*density, vol )
 
 
-def fillAnnulus( pt1, r0, r1, ppe, patch, dw, matid, density ):
-    nn = pCeil( 2*r1 / (patch.dX/ppe) )
-    ps = 2.0*r1/nn
+def fillAnnulus( pt1, r, ppe, patch, dw, matid, density ):
+    nn = pCeil( 2*r[1] / (patch.dX/ppe) )
+    ps = 2.0*r[1]/nn
     vol = patch.thick * ps[0] * ps[1]
     for jj in range(int(nn[1])):
         for ii in range(int(nn[0])):
             ns = np.array([ii+0.5,jj+0.5])
-            pt = pt1 - r1 + ps*ns
+            pt = pt1 - r[1] + ps*ns
             if patch.inPatch( pt ):
-                if ( r0 <= np.linalg.norm( pt1 - pt ) <= r1 ):
+                if ( r[0] <= np.linalg.norm( pt1 - pt ) <= r[1] ):
                     dw.addParticle( matid, pt, vol*density, vol )    
 
 

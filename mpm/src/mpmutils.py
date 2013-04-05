@@ -1,22 +1,17 @@
 import numpy as np
 from dateutil.relativedelta import relativedelta as reldelta
-
-dim = 2
 # Utils for moving data between particles and grid
 
 def integrate( cIdx, cW, pp, gg, pIdx ):
     # Integrate particle values to grid (p->g)
     for ii in pIdx:
-        for idx,w in zip( cIdx[ii], cW[ii] ):
-            gg[idx] += pp[ii] * w
+        gg[cIdx[ii]] += pp[ii] * cW[ii][:,np.newaxis]
     return gg
 
 def interpolate( cIdx, cW, pp, gg, pIdx ):
     # Interpolate grid values to particles pp
     for ii in pIdx:
-        pp[ii] = [0]
-        for idx,w in zip( cIdx[ii], cW[ii] ):
-            pp[ii] += gg[idx] * w
+        pp[ii] = np.sum( gg[cIdx[ii]] * cW[ii][:,np.newaxis], 0 )
     return pp
 
 def gradient( cIdx, cGrad, pp, gg, pIdx ):
@@ -24,19 +19,23 @@ def gradient( cIdx, cGrad, pp, gg, pIdx ):
     for ii in pIdx:
         pp[ii] = [0]
         for idx,grad in zip( cIdx[ii], cGrad[ii] ):
-            gR = np.reshape( gg[idx], (dim,1) )
-            cg = np.reshape( grad, (1,dim) )
+            gR = np.reshape( gg[idx], (2,1) )
+            cg = np.reshape( grad, (1,2) )
             pp[ii] += np.dot( gR, cg )
-        
     return pp
 
 def divergence( cIdx, cGrad, pp, gg, pIdx ):
     # Send divergence of particle field to the grid
     for ii in pIdx:
         for idx,grad in zip( cIdx[ii], cGrad[ii] ):
-            cg = np.reshape( grad, (dim,1) )            
-            gg[idx] -= np.reshape( np.dot( pp[ii], cg ), dim )
-    return gg    
+            cg = np.reshape( grad, (2,1) )            
+            gg[idx] -= np.reshape( np.dot( pp[ii], cg ), 2 )
+    return gg   
+
+def dotAdd( pp, qq, pIdx ):
+    # return pp += qq dot pp
+    for ii in pIdx:
+        pp[ii] += np.dot( qq[ii], pp[ii] )
 
 
 def readableTime( tt ):

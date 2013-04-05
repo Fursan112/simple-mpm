@@ -3,69 +3,82 @@ import time
 from mpm_imports import *
 
 #===============================================================================
-def init():
+def init( useCython ):
     # Initialize Simulation
     # Result File Name + Directory
-    fName = 'two_tmp'
-    fDir = 'test_data/two'
+    outputName = 'two'
+    outputDir = 'test_data/two'
+
     
     # Domain Constants
-    x0 = np.array([0.0,0.0]);                # Bottom left corner
-    x1 = np.array([1.,1.])                   # Top right corner
-    nN = np.array([20,20])                   # Number of cells
-    dx = (x1-x0)/nN                          # Cell size
-    nG = 2                                   # Number of ghost nodes
-    thick = 0.1                              # Domain thickness
-    ppe = 2                                  # Particles per element 
+    x0 = np.array([0.0,0.0]);                    # Bottom left corner
+    x1 = np.array([2.,2.])                       # Top right corner
+    nN = np.array([40,40])                       # Number of cells
+    dx = (x1-x0)/nN                              # Cell size
+    nG = 2                                       # Number of ghost nodes
+    thick = 0.1                                  # Domain thickness
+    ppe = 4                                      # Particles per element
+    initVelocity = 0.1 * np.array([1.,1.])       # Initial velocity vector
+    matid1 = 1;    matid2 = 2                    # Material IDs
+
 
     # Material Properties
-    mProps1 = {'modulus':1.0e3, 'poisson':0.3, 'density':1.0e3 }
-    modelName = 'planeStrainNeoHookean'
-    mat1 = Material( matid=1, props=mProps1, model=modelName, exload=0)
-    mat2 = Material( matid=2, props=mProps1, model=modelName, exload=0)
-    mats = [mat1,mat2]
+    E1 = 1.0e3;    nu1 = 0.3;    rho1 = 1.0e3;    
+    vWave1 = np.sqrt( E1/rho1 )
+    matProps1 = {'modulus':E1, 'poisson':nu1, 'density':rho1 }
+    matModelName = 'planeStrainNeoHookean'
+
     
     # Time Constants
-    vw = np.sqrt( mProps1['modulus']/mProps1['density'] )   # Wave speed    
-    t0 = 0.0;    CFL = 0.4
-    dt = min(dx) * CFL / vw;
-    tf = 5;  dt_save = 0.1   
+    t0 = 0.0                                                  # Initial Time
+    CFL = 0.4                                                 # CFL Condition
+    dt = min(dx) * CFL / vWave1;                              # Time interval
+    tf = 10.                                                  # Final time
+    outputInterval = 0.05                                     # Output interval
     
-    # Create Data Warehouse, Patch, Shape functions
-    dw = Dw( t=0.0, idx=0, sidx=0, tout=dt_save, ddir=fDir )
-    pch = Patch( x0, x1, nN, nG, t0, tf, dt, thick, dw )
-    sh = Shape()
+     
+    # Create Data Warehouse, Patchs, Shape functions
+    dw = Dw( outputInterval, outputDir )
+    patch = Patch( x0, x1, nN, nG, t0, tf, dt, thick, dw )
+    shape = Shape( useCython )
+
 
     # Create boundary conditions
-    pch.bcs = []                                 #  BC list
-    
-    # Create Circles
-    pt1 = np.array([0.25,0.25])                  # Center 1
-    pt2 = np.array([0.75,0.75])                  # Center 2
-    r = np.array([0.0,0.2])                      # Radius (inner and outer)
-    matid1 = 1;  matid2 = 2                      # Material IDs
-    geomutils.fillAnnulus( pt1,r[0],r[1],ppe,pch,dw,matid1,mProps1['density'] )
-    geomutils.fillAnnulus( pt2,r[0],r[1],ppe,pch,dw,matid2,mProps1['density'] )
-    dw.initArrays(sh.nSupport)    
-    
-    mpm.updateMats( dw, pch, mats, sh )
-    v0 = np.array([0.1,0.1])                     # Initial Velocity    
-    mat1.setVelocity( dw, v0 )
-    mat2.setVelocity( dw, -v0 )
+    patch.bcs = []                                 #  BC list
 
-    print 'dt = ' + str(pch.dt)        
-    return (dw, pch, mats, sh, fName )
+    
+    # Create Objects
+    matList = []
+    matList.append( Material( matid1, matProps1, matModelName, useCython ) )
+    matList.append( Material( matid2, matProps1, matModelName, useCython ) )    
+    
+    center1 = np.array([0.75,0.75])
+    center2 = np.array([1.25,1.25])
+    radii = np.array([0.0,0.2])
+    density = matProps1['density']
+    geomutils.fillAnnulus( center1, radii, ppe, patch, dw, matid1, density )
+    geomutils.fillAnnulus( center2, radii, ppe, patch, dw, matid2, density )
+
+
+    # Initialize Data Warehouse and Object Velocities
+    dw.initArrays(shape.nSupport)    
+    mpm.updateMats( dw, patch, matList, shape )
+    matList[0].setVelocity( dw,  initVelocity )
+    matList[1].setVelocity( dw, -initVelocity )
+
+    print 'dt = ' + str(patch.dt)        
+    return (dw, patch, matList, shape, outputName )
 
 
 #===============================================================================
-def stepTime( dw, patch, mats, shape, saveName ):
+def stepTime( dw, patch, mats, shape, outputName ):
     # Advance through time
     tbegin = time.time()
     try:
         while( (patch.t < patch.tf) and patch.allInPatch(dw.px) ):
             mpm.timeAdvance( dw, patch, mats, shape )
-            dw.saveDataAndAdvance( patch.dt, saveName )
-    except JacobError:
+            dw.saveDataAndAdvance( patch.dt, outputName )
+    except JacobianError:
         print 'Negative Jacobian'
             
     tend = time.time()
@@ -74,7 +87,7 @@ def stepTime( dw, patch, mats, shape, saveName ):
     
 
 #===============================================================================            
-def run():
-    dw, pch, mats, sh, fname = init()
-    stepTime( dw, pch, mats, sh, fname )
+def run( useCython=True ):
+    dw, patch, matList, shape, outputName = init( useCython )
+    stepTime( dw, patch, matList, shape, outputName )
     return dw

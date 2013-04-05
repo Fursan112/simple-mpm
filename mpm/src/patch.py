@@ -32,8 +32,9 @@ class Patch:
                 dw.addNode( XX )
                 
     def inPatch( self, pt ):
-        ptMin = min( min( pt - self.X0 ), min( self.X1 - pt ) )
-        if (ptMin < 0.0):
+        if (pt[0] < self.X0[0]) or (pt[1] <self.X0[1]):
+            return False
+        if (pt[0] > self.X1[0]) or (pt[1] >self.X1[1]):
             return False
         return True
     
