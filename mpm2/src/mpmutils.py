@@ -33,6 +33,14 @@ def divergence( cIdx, cGrad, pp, gg ):
             gg[idx] -= np.reshape( np.dot( ppi, cg ), 2 )
     return gg   
 
+def gradscalar( cIdx, cGrad, pp, gg ):
+    # Send gradient of particle field to the grid
+    for (ppi,idxi,gradi) in izip(pp,cIdx,cW):
+        for idx,grad in izip( idxi, gradi ):
+            gg[idx] += np.reshape( ppi * grad, 2 )
+    return gg   
+
+
 def dotAdd( pp, qq ):
     # return pp += qq dot pp
     for (ii,ppi,qqi) in izip(count(),pp,qq):

@@ -24,6 +24,7 @@ class DataWarehouse:
 	self.out_idx = idx                       # Index for output file
 	self.idx = idx                           # Iteration index
 	self.t = t                               # Initial time
+	self.dt = dt
 	self.fname = ddir + '/' + fname          # Output file name
 	self.nzeros = 4                          # Number of digits in filename
 	self.saveUtil = SaveUtil(dt,self.fname)  # Saving Utility Class
@@ -32,10 +33,15 @@ class DataWarehouse:
 	except Exception:  pass	
 
     def saveData( self, dt, matlist ):
-	self.out_idx = self.saveUtil.saveData( 
-	    self.idx, self.t, dt, matlist, self )
+	if self.checkSave( dt ):
+	    self.out_idx = self.saveUtil.saveData( self.out_idx, matlist, self )
 	self.t += dt
 	self.idx += 1
+	
+    def checkSave( self, dt ):
+	dr = self.t/self.dt
+	dt0 = self.dt * min( dr-np.floor(dr), np.ceil(dr)-dr )
+	return dt0 < dt/2.
 
     def init( self, label, dwi, val ):
 	self.dw[label,dwi] = toArray(val)
@@ -93,6 +99,6 @@ class DataWarehouse:
 	
     def zeroGrid( self, dwi ):
 	gx = self.get('gx',dwi)
-	labels = ['gm','gv','gw','ga','gfe','gfi']
+	labels = ['gm','gv','gw','ga','gfe','gfi','gGm']
 	for label in labels:
 	    self.init( label, dwi, np.zeros(gx.shape) )

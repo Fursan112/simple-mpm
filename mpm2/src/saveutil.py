@@ -19,15 +19,10 @@ class SaveUtil:
 	except Exception:  pass
     
 
-    def saveData( self, idx, t, dt, matlist, dw ):
-	rem = t % self.dt / self.dt
-	tol = (dt/2.) / self.dt
-	if (rem < tol) or ((1-rem) < tol):
-	    self.save( matlist, idx, dw )
-	    return idx + 1
-	else:
-	    return idx
-
+    def saveData( self, idx, matlist, dw ):
+	self.save( matlist, idx, dw )
+	return idx + 1
+	
 	
     def save( self, matlist, idx, dw ):	
 	fName = self.fname + str(idx).zfill(self.nzeros)
