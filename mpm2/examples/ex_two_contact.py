@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from copy import deepcopy as copy
 from mpm_imports import *
 
 #===============================================================================
@@ -88,9 +89,11 @@ def init( useCython ):
 def stepTime( dw, patch, mats, contacts ):
     # Advance through time
     tbegin = time.time()
+    mpmData = dict()
     try:
         while( (patch.t < patch.tf) and patch.allInPatch(dw.get('px',1)) ):
             mpm.timeAdvance( dw, patch, mats, contacts )
+            if dw.checkSave(patch.dt): mpmData[dw.t] = copy(dw)
             dw.saveData( patch.dt, mats )
     except JacobianError:
         print 'Negative Jacobian'
@@ -98,10 +101,12 @@ def stepTime( dw, patch, mats, contacts ):
     tend = time.time()
     print (str(dw.idx) + ' iterations in: ' + readTime(tend-tbegin) 
             + ' t=' + str(patch.t) )
+            
+    return mpmData
     
 
 #===============================================================================            
 def run( useCython=True ):
     dw, patch, mats, contacts = init( useCython )
-    stepTime( dw, patch, mats, contacts )
-    return dw
+    mpmData = stepTime( dw, patch, mats, contacts )
+    return mpmData
