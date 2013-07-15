@@ -70,8 +70,8 @@ class DataWarehouse:
       
     def addParticles( self, dwi, pX, pVol, density, shSize ):
 	npt = len(pX)
-	labels = ['pw','pvI','pxI','pfe','pGv','pVS']
-	shapes = [(npt,2),(npt,2),(npt,2),(npt,2),(npt,2,2),(npt,2,2)]
+	labels = ['pw','pvI','pxI','pfe','pGv','pVS','pfi']
+	shapes = [(npt,2),(npt,2),(npt,2),(npt,2),(npt,2,2),(npt,2,2),(npt,2)]
 
 	# Add initial position, position, volume, mass, and node contributions
 	self.add( 'pX',    dwi, pX )
@@ -102,3 +102,5 @@ class DataWarehouse:
 	labels = ['gm','gv','gw','ga','gfe','gfi','gGm']
 	for label in labels:
 	    self.init( label, dwi, np.zeros(gx.shape) )
+	    
+	self.init('gDist', dwi, np.zeros(len(gx)) )

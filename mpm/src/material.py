@@ -135,6 +135,7 @@ class Material:
         gm[:] += tol
         gv[:] = gw/gm
         ga[:] = a_leap * (gfe+gfi)/gm
+        #ga[:] = (gfe+gfi)/gm        
         gv[:] += ga*patch.dt
             
             
