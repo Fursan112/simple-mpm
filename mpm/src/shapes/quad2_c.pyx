@@ -26,9 +26,9 @@ def updateContribList( dw, patch, dwi ):
     ng = patch.nGhost
     inpf = np.array([h,patch.X0, patch.dX])
     idxs = np.array([0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2])
-    labels = ['px','gx','cIdx','cW','cGrad']
-    px,gx,cIdx,cW,cGrad = dw.getMult(labels,dwi)
-    updateContribs( inpf, idxs, ng, th, px, gx, cIdx, cW, cGrad )
+    labels = ['px','gx','cIdx','cW','cGrad','gDist']
+    px,gx,cIdx,cW,cGrad, gDist = dw.getMult(labels,dwi)
+    updateContribs( inpf, idxs, ng, th, px, gx, cIdx, cW, cGrad, gDist )
 
 
 #===============================================================================        
@@ -38,45 +38,52 @@ def updateContribs( np.ndarray[FTYPE_t, ndim=2] inpf,
                     np.ndarray[FTYPE_t, ndim=2] gx, 
                     np.ndarray[ITYPE_t, ndim=2] cIdx, 
                     np.ndarray[FTYPE_t, ndim=2] cW, 
-                    np.ndarray[FTYPE_t, ndim=3] cGrad ):
+                    np.ndarray[FTYPE_t, ndim=3] cGrad,
+		    np.ndarray[FTYPE_t, ndim=1] gDist):
     # inpf - float input vector - h, dxdy, patch.X0, patch.dX
     cdef int nParts = px.shape[0]
     cdef int cc, idx 
     cdef int ii, jj, kk
-    cdef double x, r, h, sgn
+    cdef double r, h, sgn, hm
     cdef double* hh = [inpf[0,0],inpf[0,1]]
+    cdef double* x = [0.,0.]
     cdef double* pp = [0.,0.]
     cdef double* S = [0.,0.]
     cdef double* G = [0.,0.]
     cdef int* cix = [0,0]
-        
+
+    hm = min(hh[0],hh[1])    
+    hm = sqrt(hh[0]*hh[0]+hh[1]*hh[1])
+    
     for ii in range(nParts):
 	    
 	# Get Cell
         for kk in range(2):
             pp[kk] = px[ii,kk]
 	    
-            x = (pp[kk] - inpf[1,kk])/inpf[2,kk] + ng;
-            cix[kk] = int(floor(x))
-            if (x - 1.*cix[kk]) < 0.5:    cix[kk] -= 1
+            x[kk] = (pp[kk] - inpf[1,kk])/inpf[2,kk] + ng;
+            cix[kk] = int(floor(x[kk]))
+            if (x[kk] - 1.*cix[kk]) < 0.5:    cix[kk] -= 1
                 
         cc = int(cix[1]*idxs[3] + cix[0]);
 
         for jj in range(9):
             idx = cc + idxs[jj];
+            x[0] = pp[0]-gx[idx,0]
+            x[1] = pp[1]-gx[idx,1]
+            d = sqrt( x[0]*x[0] + x[1]*x[1] )
 		
             for kk in range(2):
-                x = pp[kk] - gx[idx,kk]
-                r = fabs(x)
+                r = fabs(x[kk])
                 h = hh[kk]
-                sgn = copysign(1.,x)
+                sgn = copysign(1.,x[kk])
 		
                 if ( r < 0.5*h ):
                     S[kk] = -r*r/(h*h) + 3./4
-                    G[kk] = -2.*x/(h*h)
+                    G[kk] = -2.*x[kk]/(h*h)
                 elif ( r < 1.5*h ): 
                     S[kk] = r*r/(2.*h*h) - 3.*r/(2.*h) + 9./8
-                    G[kk] = x/(h*h) - sgn*3./(2*h)        
+                    G[kk] = x[kk]/(h*h) - sgn*3./(2*h)        
                 else: 
                     S[kk] = 0.
                     G[kk] = 0.	
@@ -85,5 +92,6 @@ def updateContribs( np.ndarray[FTYPE_t, ndim=2] inpf,
             cW[ii,jj] = S[0]*S[1]
             cGrad[ii,jj,0] = S[1]*G[0]
             cGrad[ii,jj,1] = S[0]*G[1]
+            gDist[idx] = max(0, max(gDist[idx], (1. - d/hm)))
 	
     return 0

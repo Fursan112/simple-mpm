@@ -30,19 +30,22 @@ def updateContribList( dw, patch, dwi ):
     # Update node contribution list
     nx = patch.Nc[0]
     h = patch.dX
+    hm = min(h)
     idxs = [0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2]
     S = np.zeros(h.size)
     G = np.zeros(h.size)	
     
     cIdx,cW,cGrad = dw.getMult( ['cIdx','cW','cGrad'], dwi )
     px,gx = dw.getMult( ['px','gx'], dwi )
+    gDist = dw.get( 'gDist', dwi )
 
     for ii in range(len(pVol)):
         cc = getCell( patch, px[ii] )	           
 
         for jj in range(9):	
             idx = idxs[jj] + cc 
-            r = px[ii] - gx[idx]	
+            r = px[ii] - gx[idx]
+            d = np.linalg.norm(r)
 		
             for kk in range(len(r)):
                 S[kk],G[kk] = uSG( r[kk], h[kk] )
@@ -50,3 +53,5 @@ def updateContribList( dw, patch, dwi ):
             cIdx[ii][jj] = idx
             cW[ii][jj] = S[0]*S[1]
             cGrad[ii][jj] = G * S[::-1] 
+            gDist[idx] = max(0,gDist[idx], (1. - d/hm) )
+            
