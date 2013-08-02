@@ -4,7 +4,7 @@ from copy import deepcopy as copy
 from itertools import izip, count
 from mpm_imports import *
 Shape = Quad
-Contact = FrictionlessContact
+Contact = FrictionContact
 
 #===============================================================================
 # Initial Velocity Function
@@ -34,7 +34,7 @@ def init( outputName, useCython ):
     nG = 2                                       # Number of ghost nodes
     thick = 0.1                                  # Domain thickness
     ppe = 4                                      # Particles per element
-
+    mu = 0.3                                     # Friction Coefficient
 
     # Material Properties
     E1 = 100.0e3;    nu1 = 0.3;    rho1 = 1.0e3;    
@@ -78,8 +78,8 @@ def init( outputName, useCython ):
     
     # Create Contact
     contacts = []
-    contacts.append( Contact([dwis[0],dwis[1]], ppe) )
-    contacts.append( Contact([dwis[1],dwis[2]], ppe) )
+    contacts.append( Contact([dwis[0],dwis[1]], mu, dt, ppe) )
+    contacts.append( Contact([dwis[1],dwis[2]], mu, dt, ppe) )
 
     # Initialize Data Warehouse and Object Velocities
     mpm.updateMats( dw, patch, mats )

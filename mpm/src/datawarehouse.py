@@ -99,7 +99,7 @@ class DataWarehouse:
 	
     def zeroGrid( self, dwi ):
 	gx = self.get('gx',dwi)
-	labels = ['gm','gv','gw','ga','gfe','gfi','gGm']
+	labels = ['gm','gv','gw','ga','gfe','gfi','gGm','gfc']
 	for label in labels:
 	    self.init( label, dwi, np.zeros(gx.shape) )
 	    

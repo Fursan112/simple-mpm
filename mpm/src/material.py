@@ -74,8 +74,9 @@ class Material:
                 
     def setExternalAcceleration( self, dw, acc ):
         pfe,pm = dw.getMult( ['pfe','pm'], self.dwi )
-        pfe = acc * pm
-
+        for (ii,pmi) in izip(count(),pm):
+            pfe[ii] = acc*pmi
+        
 
     def applyExternalLoads( self, dw, patch ):
         # Apply external loads to each material
@@ -129,12 +130,14 @@ class Material:
         gw = dw.get( 'gw', dwi )                      # Momentum
         gfi = dw.get( 'gfi', dwi )                    # Internal Force
         gfe = dw.get( 'gfe', dwi )                    # External Force
+        gfc = dw.get( 'gfc', dwi )                    # External Force
+        
         gv = dw.get( 'gv', dwi )                      # Velocity
         ga = dw.get( 'ga', dwi )
         
         gm[:] += tol
         gv[:] = gw/gm
-        ga[:] = a_leap * (gfe+gfi)/gm
+        ga[:] = a_leap * (gfc+gfe+gfi)/gm
         #ga[:] = (gfe+gfi)/gm        
         gv[:] += ga*patch.dt
             

@@ -72,7 +72,7 @@ def exchMomentumIntegrated( dw, contacts ):
 def setGridBoundaryConditions( dw, patch ):
     # Set boundary conditions
     for bc in patch.bcs:
-        bc.setBoundCond( dw, patch, patch.tol )
+        bc.setBoundCond( dw, patch, patch.dX[0]+patch.tol )
 
     
 def interpolateToParticlesAndUpdate( dw, patch, mats ):
