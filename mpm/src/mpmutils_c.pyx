@@ -118,6 +118,7 @@ def dotAdd( np.ndarray[FTYPE_t, ndim=3] pp,
             for kk in range(2):
                 dot[jj,kk] = qq[ii,jj,0]*pp[ii,0,kk]+qq[ii,jj,1]*pp[ii,1,kk]
                 
+                
         for jj in range(2):
             for kk in range(2):
                 pp[ii,jj,kk] += dot[jj,kk]

@@ -16,6 +16,11 @@ def vdot( x, y ):
 def vmin( x, y ):
     return x*((x-y)<0) + y*((x-y)>=0)
 
+def vnormalize( x ):
+    xx = vnorm(x)
+    xnorm = (xx>0)*xx + (xx==0)*1.
+    return x/xnorm
+
 
 #===============================================================================
 class Contact:
@@ -27,7 +32,6 @@ class Contact:
 
         if useCython:  self.util = util_c
         else:          self.util = util        
-
     
     def findIntersectionSimple( self, dw ):
         # Assumes all materials share a common grid
@@ -78,29 +82,26 @@ class FrictionlessContact(Contact):
     
     def findIntersection( self, dw ):
         self.nodes = np.array([],int)
-        idxs = [-self.nx-1,-self.nx,-self.nx+1,-1,0,1,self.nx-1,self.nx,self.nx+1]        
-        gd0 = dw.get('gDist', self.dwis[0]) - 1. + 1./self.ppe
-        gd1 = dw.get('gDist', self.dwis[1]) - 1. + 1./self.ppe
-        gmask = (gd0>-1.)*(gd1>-1.)*((gd0+gd1)>(-0.9/self.ppe))
+        nodes = []
+        #idxs = [-self.nx-1,-self.nx,-self.nx+1,-1,0,1,self.nx-1,self.nx,self.nx+1]      
+        idxs = [0]
+
+        lvl0 = 1. - 1./self.ppe
+        gd0 = dw.get('gDist', self.dwis[0]) - lvl0
+        gd1 = dw.get('gDist', self.dwis[1]) - lvl0
+        gmask = (gd0>-lvl0)*(gd1>-lvl0)*((gd0+gd1)>(-0.5/self.ppe))
         nodes0 = np.where( gmask == True )[0]
+
         if nodes0.any():
-            nodes = []
             for idx in idxs:
-                nodes += list( nodes0 + idx )            
+                nodes += list( nodes0 + idx )  
             self.nodes = np.array(list(set(nodes)))        
-        
-        dwi = self.dwis[0]
-        cIdx,cGrad = dw.getMult( ['cIdx','cGrad'], dwi )            
-        pm = dw.get( 'pm', dwi )
-        pVol = dw.get( 'pVol', dwi )
-        gGm = dw.get( 'gGm', dwi )
-        self.util.gradscalar( cIdx, cGrad, pm, gGm )  
-        
-        if nodes0.any():
-            for (ii,nd) in izip(count(),self.nodes):
-                if (np.linalg.norm(gGm[ii]) < self.mtol):
-                    for idx in idxs:
-                        gGm[ii] += gGm[ii+idx]
+                
+        for dwi in self.dwis:
+            cIdx,cW = dw.getMult( ['cIdx','cW'], dwi )            
+            pn = dw.get( 'pn', dwi )
+            gn = dw.get( 'gn', dwi )
+            self.util.integrate( cIdx, cW, pn, gn )  
                     
         
     def exchMomentumInterpolated( self, dw ):
@@ -111,36 +112,39 @@ class FrictionlessContact(Contact):
         ms = dw.get('gm',self.dwis[1])
         Pr = dw.get('gw',self.dwis[0])
         Ps = dw.get('gw',self.dwis[1])
-        gm = dw.get('gGm', self.dwis[0])
-        nn = gm[ii]/vnorm(gm[ii])
+        Prc = dw.get('gwc',self.dwis[0])
+        Psc = dw.get('gwc',self.dwis[1])
+        nr = dw.get('gn', self.dwis[0])
+        ns = dw.get('gn', self.dwis[1])
+        nn = (vnormalize(nr[ii])- vnormalize(ns[ii]))/2.    
+        #nn = vnormalize(nr[ii])    
         dp0 = 1/(mr[ii]+ms[ii]+self.mtol)*(ms[ii]*Pr[ii]-mr[ii]*Ps[ii])
         dp = vdot(dp0,nn)
-        dp = dp * (dp>0)
+        dp = dp * (dp>=0.)
         
-        Pr[ii] -= dp * nn
-        Ps[ii] += dp * nn
+        Prc[ii] = -dp * nn
+        Psc[ii] = dp * nn
 
         
     def exchForceInterpolated( self, dw ):
         ii = self.nodes
         mr = dw.get('gm',self.dwis[0])
         ms = dw.get('gm',self.dwis[1])  
-        
         fr = dw.get('gfe', self.dwis[0])
         fs = dw.get('gfe', self.dwis[1])
-        
         fir = dw.get('gfi', self.dwis[0])
         fis = dw.get('gfi', self.dwis[1])
         
-        gm = dw.get('gGm', self.dwis[0])
-        nn = gm[ii]/vnorm(gm[ii])        
-        
+        nr = dw.get('gn', self.dwis[0])
+        ns = dw.get('gn', self.dwis[1])
+        nn = (vnormalize(nr[ii])- vnormalize(ns[ii]))/2.    
+        #nn = vnormalize(nr[ii])    
         psi = vdot( ms[ii]*fir[ii]-mr[ii]*fis[ii], nn )
-        psi = psi * (psi>0)
+        psi = psi * (psi>=0.)
         
-        fnor = (1/(mr[ii]+ms[ii]+self.mtol)*psi) * nn
-        fr[ii] -= fnor
-        fs[ii] += fnor
+        fnor = (1./(mr[ii]+ms[ii]+self.mtol)*psi) * nn
+        fr[ii] = -fnor
+        fs[ii] = +fnor
         
         
 class FrictionContact(FrictionlessContact):

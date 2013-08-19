@@ -15,6 +15,11 @@ def vdot( x, y ):
 def vmin( x, y ):
     return x*((x-y)<0) + y*((x-y)>=0)
 
+def vnormalize( x ):
+    xx = vnorm(x)
+    xnorm = (xx>0)*xx + (xx==0)*1.
+    return x/xnorm
+
 
 #===============================================================================
 class SimpleContact:
@@ -27,11 +32,13 @@ class SimpleContact:
         else:          self.util = util        
 
     def findIntersection( self, dw ):
-        gd0 = dw.get('gDist', self.dwis[0]) - 1. + 1./self.ppe
-        gd1 = dw.get('gDist', self.dwis[1]) - 1. + 1./self.ppe
-        gmask = (gd0>-1.)*(gd1>-1.)*((gd0+gd1)>(-0.9/self.ppe))
-        self.nodes = np.where( gmask == True )[0]
-    
+        lvl0 = 1. - 1./self.ppe
+        tol = 0.01/self.ppe
+        gd0 = dw.get('gDist', self.dwis[0])
+        gd1 = dw.get('gDist', self.dwis[1])
+        gmask = (gd0>tol)*(gd1>tol)*((gd0+gd1)>(0./self.ppe))
+        self.nodes = np.where( gmask == True )[0]        
+        
     def findIntersectionSimple( self, dw ):
         # Assumes all materials share a common grid
         gm0 = dw.get('gm',self.dwis[0])
@@ -86,7 +93,7 @@ class FrictionlessContact(SimpleContact):
             gGm = dw.get( 'gGm', dwi )
             self.util.gradscalar( cIdx, cGrad, pm, gGm )        
         
-        SimpleContact.findIntersectionSimple( self, dw )       
+        SimpleContact.findIntersection( self, dw )       
         
         
     def exchMomentumInterpolated( self, dw ):
@@ -97,12 +104,19 @@ class FrictionlessContact(SimpleContact):
         ms = dw.get('gm',self.dwis[1])
         Pr = dw.get('gw',self.dwis[0])
         Ps = dw.get('gw',self.dwis[1])
-        gm = dw.get('gGm', self.dwis[0])
-        nn = gm[ii]/vnorm(gm[ii])
+        gfc = dw.get('gfc', self.dwis[1])
+        
+        gmr = dw.get('gGm', self.dwis[0])
+        gms = dw.get('gGm', self.dwis[1])
+        
+        #nn = gm[ii]/vnorm(gm[ii])       
+        nn = (vnormalize(gmr[ii])- vnormalize(gms[ii]))/2.            
+        
         dp0 = 1/(mr[ii]+ms[ii])*(ms[ii]*Pr[ii]-mr[ii]*Ps[ii])
         dp = vdot(dp0,nn)
         dp = dp * (dp>0)
         
+        gfc[ii] = 1.
         Pr[ii] -= dp * nn
         Ps[ii] += dp * nn
 
@@ -112,21 +126,24 @@ class FrictionlessContact(SimpleContact):
         mr = dw.get('gm',self.dwis[0])
         ms = dw.get('gm',self.dwis[1])  
         
-        fr = dw.get('gfc', self.dwis[0])
-        fs = dw.get('gfc', self.dwis[1])
+        fr = dw.get('gfe', self.dwis[0])
+        fs = dw.get('gfe', self.dwis[1])
         
         fir = dw.get('gfi', self.dwis[0])
         fis = dw.get('gfi', self.dwis[1])
         
-        gm = dw.get('gGm', self.dwis[0])
-        nn = gm[ii]/vnorm(gm[ii])        
+        gmr = dw.get('gGm', self.dwis[0])
+        gms = dw.get('gGm', self.dwis[1])
+        
+        #nn = gm[ii]/vnorm(gm[ii])       
+        nn = (vnormalize(gmr[ii])- vnormalize(gms[ii]))/2.            
         
         psi = vdot( ms[ii]*fir[ii]-mr[ii]*fis[ii], nn )
         psi = psi * (psi>0)
         
         fnor = (1/(mr[ii]+ms[ii])*psi) * nn
-        fr[ii] -= fnor
-        fs[ii] += fnor
+        fr[ii] = -fnor
+        fs[ii] = fnor
         
         
 class FrictionContact(FrictionlessContact):

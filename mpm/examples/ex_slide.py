@@ -4,7 +4,7 @@ from copy import deepcopy as copy
 from itertools import izip, count
 from mpm_imports import *
 Shape = GIMP
-Contact = FreeContact
+Contact = FrictionlessContact
 
 def zero(x): return 0.
 
@@ -48,8 +48,8 @@ def init( outputFile, useCython ):
     t0 = 0.0                                                  # Initial Time
     CFL = 0.4                                                 # CFL Condition
     dt = min((x1-x0)/nN) * CFL / vWave1;                      # Time interval
-    tf = 150.                                                  # Final time
-    outputInterval = 0.2                                     # Output interval  
+    tf = 2.                                                 # Final time
+    outputInterval = dt                                    # Output interval  
 
     #========================================     
     # Create Data Warehouse, Patchs, Shape functions
@@ -61,19 +61,20 @@ def init( outputFile, useCython ):
     # Create Objects
     mats = []    
     dwis = [1,2]
-    y0 = 0.05;  r = 0.2;  offset = 0.125    # Plane height, radius, vert offset
-    cntr = np.array([3*r, y0+r+offset])     # Cylinder center position
-    circ = gu.ellipseLvl( r, cntr )         # Level set defining the cylinder    
+    y0 = 0.12;  r = 0.2;  offset = 0.1    # Plane height, radius, vert offset
+    cntr = np.array([3.1*r, y0+r+offset])     # Cylinder center position
+    circ,circNml = gu.ellipseLvl( r, cntr ) # Level set defining the cylinder and normal
     def plane(x):  return y0 - x[1]         # Level set defining the plane
+    def planeNml(x): return np.array([0.,1.])
     lvls = [circ, plane]
-    
+    nmls = [circNml, planeNml]
     for ii in range(len(dwis)):
         dens = matProps[ii]['density']
         dw.createGrid(dwis[ii],patch)
         mats.append(Material( matProps[ii], matModelName, dwis[ii], 
                               shape, useCython ))
-        px, vol = gu.fillLvl( lvls[ii], patch )
-        dw.addParticles( dwis[ii], px, vol, dens, shape.nSupport )
+        px, vol, nml = gu.fillLvl( lvls[ii], nmls[ii], patch )
+        dw.addParticles( dwis[ii], px, vol, nml, dens, shape.nSupport )
    
     #========================================
     # Create Contact
@@ -133,12 +134,10 @@ def stepTime( mpm, saveDWs ):
         #========================================        
         # Loop while t<dt and all particles remain in the domain
         while( (patch.t < patch.tf) and inPatch ):
-            #print ii
-            #ii+=1
             mpm2d.timeAdvance( dw, patch, mats, contacts )
             
             if saveDWs and dw.checkSave(patch.dt): mpmData[dw.t] = copy(dw)
-            dw.saveData( patch.dt, mats )
+            dw.dumpData( patch.dt, mats )
 
             # Track cylinder center position
             t.append(dw.t)

@@ -1,4 +1,6 @@
 import numpy as np
+import numpy.linalg as la
+from scipy.linalg import sqrtm
 import materialmodel2d as mmodel
 import cProfile
 from itertools import izip, count
@@ -128,16 +130,24 @@ class Material:
         
         gm = dw.get( 'gm', dwi )                      # Mass
         gw = dw.get( 'gw', dwi )                      # Momentum
+        gwc = dw.get('gwc', dwi )
         gfi = dw.get( 'gfi', dwi )                    # Internal Force
         gfe = dw.get( 'gfe', dwi )                    # External Force
-        gfc = dw.get( 'gfc', dwi )                    # External Force
         
+        cIdx,cW,cGrad = dw.getMult( ['cIdx','cW','cGrad'], self.dwi )
+        pfi = dw.get( 'pfi', dwi )                          
+        self.util.interpolate( cIdx, cW, pfi, gfi )
+        
+        pfc = dw.get( 'pfc', dwi )                          
+        self.util.interpolate( cIdx, cW, pfc, gfe )    
+                
         gv = dw.get( 'gv', dwi )                      # Velocity
         ga = dw.get( 'ga', dwi )
         
         gm[:] += tol
-        gv[:] = gw/gm
-        ga[:] = a_leap * (gfc+gfe+gfi)/gm
+        gv[:] = (gw+gwc)/gm
+        #gv[:] = gw/gm
+        ga[:] = a_leap * (gfe+gfi)/gm
         #ga[:] = (gfe+gfi)/gm        
         gv[:] += ga*patch.dt
             
@@ -160,8 +170,17 @@ class Material:
         pw = dw.get( 'pw', dwi )
         pm = dw.get( 'pm', dwi )        
         pF = dw.get( 'pF', dwi )
+        pN = dw.get( 'pN', dwi )
+        pn = dw.get( 'pn', dwi )
         
-        pw += pvI * pm * patch.dt
-        px += pxI * patch.dt
+        #pw += pvI * pm * patch.dt
+        pw[:] = pxI * pm
+        px[:] += pxI * patch.dt
         
         self.util.dotAdd( pF, pGv*patch.dt )                # pF += (pGv*dt).pF
+
+        for (ii,pFi,pNi) in izip(count(),pF,pN):            # Nanson's Formula
+            #pni = la.det(pFi) * np.dot( la.pinv(np.transpose(pFi)), pNi )
+            #pn[ii] = 0.*pNi if la.norm(pni) == 0 else pni/la.norm(pni)
+            Ri = np.dot( la.inv(sqrtm(np.dot(pFi,np.transpose(pFi)))), pFi )
+            pn[ii] = np.dot(Ri, pNi)
