@@ -20,6 +20,7 @@ def vnormalize( x ):
     xnorm = (xx>0)*xx + (xx==0)*1.
     return x/xnorm
 
+# Git test comment
 
 #===============================================================================
 class SimpleContact:
