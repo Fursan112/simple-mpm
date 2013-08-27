@@ -25,11 +25,11 @@ def updateContribList( dw, patch, dwi ):
     dxdy = h[::-1]/h
     ng = patch.nGhost
     inpf = np.array([h,dxdy,patch.X0, patch.dX])
-    idxs = np.array([0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2])
-    labels = ['px','pVol','pF','gx','cIdx','cW','cGrad']
-    px,pVol,pF,gx,cIdx,cW,cGrad = dw.getMult(labels,dwi)
+    idxs = np.array([0,1,2,nx,nx+1,nx+2,2*nx,2*nx+1,2*nx+2])  
+    labels = ['px','pVol','pF','gx','cIdx','cW','cGrad','gDist']
+    px,pVol,pF,gx,cIdx,cW,cGrad,gDist = dw.getMult(labels,dwi)
     updateContribs( inpf, idxs, ng, th, px, pVol, pF, 
-		     gx, cIdx, cW, cGrad )
+		     gx, cIdx, cW, cGrad, gDist )
 
 
 #===============================================================================        
@@ -41,18 +41,22 @@ def updateContribs( np.ndarray[FTYPE_t, ndim=2] inpf,
                     np.ndarray[FTYPE_t, ndim=2] gx, 
                     np.ndarray[ITYPE_t, ndim=2] cIdx, 
                     np.ndarray[FTYPE_t, ndim=2] cW, 
-                    np.ndarray[FTYPE_t, ndim=3] cGrad ):
+                    np.ndarray[FTYPE_t, ndim=3] cGrad,
+                    np.ndarray[FTYPE_t, ndim=1] gDist ):
     # inpf - float input vector - h, dxdy, patch.X0, patch.dX
     cdef int nParts = px.shape[0]
     cdef int cc, idx 
     cdef int ii, jj, kk
-    cdef double x, r, h, l, sgn
+    cdef double x, r, h, l, sgn, hm, xx, xy
     cdef double* hh = [inpf[0,0],inpf[0,1]]
     cdef double* pp = [0.,0.]
     cdef double* ll = [0.,0.]
     cdef double* S = [0.,0.]
     cdef double* G = [0.,0.]
     cdef int* cix = [0,0]
+    
+    hm = min(hh[0],hh[1])    
+    hm = sqrt(hh[0]*hh[0]+hh[1]*hh[1])
         
     for ii in range(nParts):
 	    
@@ -69,6 +73,9 @@ def updateContribs( np.ndarray[FTYPE_t, ndim=2] inpf,
 
         for jj in range(9):
             idx = cc + idxs[jj];
+            xx = pp[0]-gx[idx,0]
+            xy = pp[1]-gx[idx,1]
+            d = sqrt( xx*xx + xy*xy )
 		
             for kk in range(2):
                 x = pp[kk] - gx[idx,kk]
@@ -93,5 +100,6 @@ def updateContribs( np.ndarray[FTYPE_t, ndim=2] inpf,
             cW[ii,jj] = S[0]*S[1]
             cGrad[ii,jj,0] = S[1]*G[0]
             cGrad[ii,jj,1] = S[0]*G[1]
+            gDist[idx] = max(0, max(gDist[idx], (1. - d/hm)))
 	
     return 0
