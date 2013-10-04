@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import time
 from evtk.hl import pointsToVTK
 from copy import deepcopy as copy
 
@@ -94,15 +95,15 @@ class SaveUtil:
 	ms = np.array(ms)
 	matid = np.array(matid)
 	pdat = {"vonMises":ms, "v":v, "mat":matid}
-	gdat = dict()
 	
 	# Create Node Grid
 	gX = dw.get('gx',matlist[0].dwi)
-	gx = gX[:,0]
-	gy = gX[:,1]
+	gx = np.array(gX[:,0])
+	gy = np.array(gX[:,1])
 	gz = np.zeros(gx.shape)
+	gdat = {"g_test":gz}
 	
-	partList = ['pxI','pvI','pw','pfi','pfe','pfc','pwc','pn']
+	partList = ['pX','pxI','pvI','pw','pfi','pfe','pfc','pwc','pn']
 	nodeList = ['gv','gw','ga','gfe','gfi','gn','gfc','gwc','gDist','gm']
 	
 	for var in partList:
@@ -119,7 +120,6 @@ class SaveUtil:
 	    pdat[var+'_y'] = np.array(tmp2)
 	    pdat[var] = np.array(tmp3)
 	    
-	
 	for var in nodeList:
 	    for mat in matlist:
 		dwi = mat.dwi
@@ -127,10 +127,9 @@ class SaveUtil:
 		try:
 		    gdat[var+str(dwi)+'_x'] = np.array(list(gvar[:,0]))
 		    gdat[var+str(dwi)+'_y'] = np.array(list(gvar[:,1]))
-		    gdat[var+str(dwi)] = vnorm(gvar)		    
+		    gdat[var+str(dwi)] = vnorm(gvar)	
 		except Exception:
 		    gdat[var+str(dwi)] = gvar		    
 		    
-
-	pointsToVTK(fName, x, y, z, data = pdat)	
+	pointsToVTK(fName, x, y, z, data = pdat)
 	pointsToVTK(fNodeName, gx, gy, gz, data = gdat)	

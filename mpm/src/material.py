@@ -105,10 +105,12 @@ class Material:
     def computeStressTensor( self, dw, patch ):    
         pf  = dw.get( 'pF', self.dwi )                # Deformation Gradient
         pvs = dw.get( 'pVS', self.dwi )               # Volume * Stress
-        pv  = dw.get( 'pVol', self.dwi )              # Volume
+        pv  = dw.get( 'pVol', self.dwi )              # Volume        
+        pn  = dw.get( 'pn', self.dwi )              # Volume
         
         for (ii,pfi,pvi) in izip(count(),pf,pv):
             S,Ja = self.mm.getStress( pfi )     # Get stress and det(pf)
+            pn[ii] = Ja
             pvs[ii] = S * pvi * Ja              # Stress * deformed volume     
             if not self.ignoreNegJ:
                 if Ja < 0:  raise JacobianError('computeStressTensor','Neg J')            
@@ -170,17 +172,9 @@ class Material:
         pw = dw.get( 'pw', dwi )
         pm = dw.get( 'pm', dwi )        
         pF = dw.get( 'pF', dwi )
-        pN = dw.get( 'pN', dwi )
-        pn = dw.get( 'pn', dwi )
         
         #pw += pvI * pm * patch.dt
         pw[:] = pxI * pm
         px[:] += pxI * patch.dt
         
         self.util.dotAdd( pF, pGv*patch.dt )                # pF += (pGv*dt).pF
-
-        for (ii,pFi,pNi) in izip(count(),pF,pN):            # Nanson's Formula
-            #pni = la.det(pFi) * np.dot( la.pinv(np.transpose(pFi)), pNi )
-            #pn[ii] = 0.*pNi if la.norm(pni) == 0 else pni/la.norm(pni)
-            Ri = np.dot( la.inv(sqrtm(np.dot(pFi,np.transpose(pFi)))), pFi )
-            pn[ii] = np.dot(Ri, pNi)

@@ -34,10 +34,11 @@ class SimpleContact:
 
     def findIntersection( self, dw ):
         lvl0 = 1. - 1./self.ppe
-        tol = 0.01/self.ppe
-        gd0 = dw.get('gDist', self.dwis[0])
-        gd1 = dw.get('gDist', self.dwis[1])
-        gmask = (gd0>tol)*(gd1>tol)*((gd0+gd1)>(0./self.ppe))
+        tol = -0.1/self.ppe
+        gd0 = dw.get('gDist', self.dwis[0]) - lvl0
+        gd1 = dw.get('gDist', self.dwis[1]) - lvl0
+        gmask = (gd0>tol)*(gd1>tol)*((gd0+gd1)>tol)
+        gmask = ((gd0+gd1)>tol)
         self.nodes = np.where( gmask == True )[0]        
         
     def findIntersectionSimple( self, dw ):
@@ -94,7 +95,7 @@ class FrictionlessContact(SimpleContact):
             gGm = dw.get( 'gGm', dwi )
             self.util.gradscalar( cIdx, cGrad, pm, gGm )        
         
-        SimpleContact.findIntersection( self, dw )       
+        SimpleContact.findIntersectionSimple( self, dw )       
         
         
     def exchMomentumInterpolated( self, dw ):
@@ -166,11 +167,13 @@ class FrictionContact(FrictionlessContact):
         fis = dw.get('gfi', self.dwis[1])[ii]        
         fr = dw.get('gfe', self.dwis[0])               # External Force
         fs = dw.get('gfe', self.dwis[1])
-        gm = dw.get('gGm', self.dwis[0])[ii]           # Mass Gradient
         vr = Pr/mr                                     # Velocity
         vs = Ps/ms
+        
+        gmr = dw.get('gGm', self.dwis[0])
+        gms = dw.get('gGm', self.dwis[1])
+        nn = (vnormalize(gmr[ii])- vnormalize(gms[ii]))/2.               
                 
-        nn = gm/vnorm(gm)                              # Surface Normal
         tt0 = (vr-vs)-vdot(vr-vs,nn)*nn
         tt = tt0/vnorm(tt0)                            # Velocity Tangent
                 
@@ -178,11 +181,78 @@ class FrictionContact(FrictionlessContact):
         psi = psi * (psi>0)
                 
         fnor = (1/(mr+ms)*psi) * nn                    # Normal Force
-        fr[ii] -= fnor
-        fs[ii] += fnor        
+        fr[ii] = fnor
+        fs[ii] = fnor        
         
         ftan = vdot((ms*Pr-mr*Ps)+(ms*fir-mr*fis)*dt,tt) / ((mr+ms)*dt)
         ffric = vmin(mu*vnorm(fnor), vnorm(ftan)) * tt
         
         fr[ii] -= ffric
         fs[ii] += ffric
+
+#===============================================================================
+class VelocityContact(SimpleContact):
+    # See Pan et al - 3D Multi-Mesh MPM for Solving Collision Problems
+    def __init__(self, dwis, nx=1, ppe=1, bCython=True ):
+        SimpleContact.__init__(self, dwis, ppe)
+    
+    
+    def findIntersection( self, dw ):
+        for dwi in self.dwis:
+            cIdx,cGrad = dw.getMult( ['cIdx','cGrad'], dwi )            
+            pm = dw.get( 'pm', dwi )
+            pVol = dw.get( 'pVol', dwi )
+            gGm = dw.get( 'gGm', dwi )
+            self.util.gradscalar( cIdx, cGrad, pm, gGm )        
+        
+        SimpleContact.findIntersectionSimple( self, dw )       
+        
+        
+    def exchMomentumInterpolated( self, dw ):
+        self.findIntersection( dw )       
+        ii = self.nodes
+        
+        mr = dw.get('gm',self.dwis[0])
+        ms = dw.get('gm',self.dwis[1])
+        Pr = dw.get('gw',self.dwis[0])
+        Ps = dw.get('gw',self.dwis[1])
+        gfc = dw.get('gfc', self.dwis[1])
+        
+        gmr = dw.get('gGm', self.dwis[0])
+        gms = dw.get('gGm', self.dwis[1])
+        
+        #nn = gm[ii]/vnorm(gm[ii])       
+        nn = (vnormalize(gmr[ii])- vnormalize(gms[ii]))/2.            
+        
+        dp0 = 1/(mr[ii]+ms[ii])*(ms[ii]*Pr[ii]-mr[ii]*Ps[ii])
+        dp = vdot(dp0,nn)
+        dp = dp * (dp>0)
+        
+        gfc[ii] = 1.
+        Pr[ii] -= dp * nn
+        Ps[ii] += dp * nn
+
+        
+    def exchMomentumIntegrated( self, dw ):
+        self.findIntersection( dw )       
+        ii = self.nodes
+        
+        mr = dw.get('gm',self.dwis[0])
+        ms = dw.get('gm',self.dwis[1])
+        Pr = dw.get('gw',self.dwis[0])
+        Ps = dw.get('gw',self.dwis[1])
+        Vr = dw.get('gv',self.dwis[0])
+        Vs = dw.get('gv',self.dwis[1])
+        gfc = dw.get('gfc', self.dwis[1])
+        
+        gmr = dw.get('gGm', self.dwis[0])
+        gms = dw.get('gGm', self.dwis[1])
+        nn = (vnormalize(gmr[ii])- vnormalize(gms[ii]))/2.            
+        
+        dp0 = 1/(mr[ii]+ms[ii])*(ms[ii]*Pr[ii]-mr[ii]*Ps[ii])
+        dp = vdot(dp0,nn)
+        dp = dp * (dp>0)
+        
+        gfc[ii] = 1.
+        Vr[ii] -= dp * nn / mr[ii]
+        Vs[ii] += dp * nn / ms[ii]
